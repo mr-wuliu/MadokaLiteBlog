@@ -1,25 +1,28 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.5.002.0
+VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MadokaLiteBlog", "MadokaLiteBlog.csproj", "{774E4844-70DE-48E5-9C17-298FDC7FB047}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MadokaLiteBlog.Client", "MadokaLiteBlog.Client\MadokaLiteBlog.Client.csproj", "{5B876BE1-C318-4860-A3E7-5AD5E61AAC0D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MadokaLiteBlog.Api", "MadokaLiteBlog.Api\MadokaLiteBlog.Api.csproj", "{899C3916-AE42-498E-A730-87A8BDD6F7E5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{774E4844-70DE-48E5-9C17-298FDC7FB047}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{774E4844-70DE-48E5-9C17-298FDC7FB047}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{774E4844-70DE-48E5-9C17-298FDC7FB047}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{774E4844-70DE-48E5-9C17-298FDC7FB047}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {3CEBC4CF-8978-476F-B20C-62D3AD0EBFCA}
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5B876BE1-C318-4860-A3E7-5AD5E61AAC0D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B876BE1-C318-4860-A3E7-5AD5E61AAC0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B876BE1-C318-4860-A3E7-5AD5E61AAC0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B876BE1-C318-4860-A3E7-5AD5E61AAC0D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{899C3916-AE42-498E-A730-87A8BDD6F7E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{899C3916-AE42-498E-A730-87A8BDD6F7E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{899C3916-AE42-498E-A730-87A8BDD6F7E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{899C3916-AE42-498E-A730-87A8BDD6F7E5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

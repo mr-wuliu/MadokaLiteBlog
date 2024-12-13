@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: madoka_postgres
+    environment:
+      POSTGRES_DB: madokadb
+      POSTGRES_USER: madoka
+      POSTGRES_PASSWORD: madoka_postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/postgres:/var/lib/postgresql/data
+    networks:
+      - madoka_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U madoka -d madokadb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:alpine
+    container_name: madoka_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./docker/redis:/data
+    networks:
+      - madoka_net
+    command: redis-server --requirepass madoka_redis
+  # 管理人员账号密码: admin@admin.com  admin@
+  lsky-pro:
+    image: halcyonazure/lsky-pro-docker:latest
+    container_name: madoka_lsky
+    ports:
+      - "8090:8089"
+    volumes:
+      - ./docker/lsky/uploads:/var/www/html/storage/app/uploads
+      - ./docker/lsky/config:/var/www/html/config
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=lskydb
+      - DB_USERNAME=madoka
+      - DB_PASSWORD=madoka_postgres
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=madoka_redis
+      - REDIS_PORT=6379
+    networks:
+      - madoka_net
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: madoka_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - ./docker/pgadmin:/var/lib/pgadmin
+    networks:
+      - madoka_net
+    depends_on:
+      - postgres
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: madoka_redis_commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:madoka_redis
+    ports:
+      - "8081:8081"
+    networks:
+      - madoka_net
+    depends_on:
+      - redis
+
+networks:
+  madoka_net:
+    driver: bridge
