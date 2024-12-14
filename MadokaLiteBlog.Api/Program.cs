@@ -1,7 +1,17 @@
+using Npgsql;
+using MadokaLiteBlog.Api.Service;
+using MadokaLiteBlog.Api.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// 从配置文件中读取连接字符串
+var connectionString = builder.Configuration.GetConnectionString("PostgresDb");
+
+builder.Services.AddScoped<NpgsqlConnection>(sp => new NpgsqlConnection(connectionString));
+
+builder.Services.AddScoped<PostMapper>();
+builder.Services.AddScoped<PostServer>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -19,7 +29,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -27,15 +36,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// 使用 CORS
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
