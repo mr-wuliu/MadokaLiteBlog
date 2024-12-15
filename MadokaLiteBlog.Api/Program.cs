@@ -1,10 +1,12 @@
 using Npgsql;
 using MadokaLiteBlog.Api.Service;
 using MadokaLiteBlog.Api.Data;
-using MadokaLiteBlog.Api.Extensions;
-using System.Reflection;
+using NLog.Web;
 
 var builder = WebApplication.CreateBuilder(args);
+// 配置日志
+builder.Logging.ClearProviders();
+builder.Host.UseNLog();
 
 // 从配置文件中读取连接字符串
 var connectionString = builder.Configuration.GetConnectionString("PostgresDb");
@@ -30,7 +32,7 @@ builder.Services.AddCors(options =>
 });
 
 // 自动注册所有 Jsonb 类型处理器
-Assembly.GetExecutingAssembly().RegisterJsonbTypeHandlers();
+// Assembly.GetExecutingAssembly().RegisterJsonbTypeHandlers();
 
 var app = builder.Build();
 

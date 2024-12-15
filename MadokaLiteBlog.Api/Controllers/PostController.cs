@@ -7,9 +7,11 @@ using MadokaLiteBlog.Api.Service;
 public class PostController : ControllerBase
 {
     private readonly PostServer _postServer;
-    public PostController(PostServer postServer)
+    private readonly ILogger<PostController> _logger;
+    public PostController(PostServer postServer, ILogger<PostController> logger)
     {
         _postServer = postServer;
+        _logger = logger;
     }
     [HttpGet]
     public IActionResult Get()
@@ -19,7 +21,8 @@ public class PostController : ControllerBase
             new() { Id = 1, Title = "第一篇文章", Content = "这是测试内容1" },
             new() { Id = 2, Title = "第二篇文章", Content = "这是测试内容2" }
         };
-        
+        // 构造一个运行时错误
+        _logger.LogInformation("Get方法被调用");
         return Ok(posts);
     }
     [HttpGet("{id}")]
