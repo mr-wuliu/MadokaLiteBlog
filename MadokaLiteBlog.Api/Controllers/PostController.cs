@@ -42,4 +42,18 @@ public class PostController : ControllerBase
         post = await _postServer.GetPost(post);
         return Ok(post);
     }
+    [HttpPost("add")]
+    public async Task<IActionResult> AddPostToDatabase()
+    {
+        var post = new Post 
+        { 
+            Title = "第1篇文章",
+            Content = "这是测试内容1",
+            Summary = "这是测试摘要1",
+            IsPublished = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+        await _postServer.AddPost(post);
+        return Ok();
+    }
 } 

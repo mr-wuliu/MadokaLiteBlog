@@ -18,5 +18,9 @@ public class PostServer
     {
         return await _postMapper.GetByPropertyAsync(post);
     }
+    public async Task AddPost(Post post)
+    {
+        await _postMapper.InsertAsync(post);
+    }
 
 }

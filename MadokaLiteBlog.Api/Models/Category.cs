@@ -1,9 +1,9 @@
-
 namespace MadokaLiteBlog.Api.Models;
-
-public class Category
+[Table("Category")]
+public class Category : BaseEntity
 {
-    public int Id { get; set; }
+    [Key("Id")]
+    public long Id { get; set; }
     public string? Name { get; set; }
     public string? Description { get; set; }
 }

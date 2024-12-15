@@ -4,9 +4,9 @@ namespace MadokaLiteBlog.Api.Models;
 /// 标签
 /// </summary>
 [Table("Tag")]
-public class Tag
+public class Tag : BaseEntity
 {
     [Key("Id")]
-    public required long Id { get; set; }
+    public long Id { get; set; }
     public string? Name { get; set; }
 }

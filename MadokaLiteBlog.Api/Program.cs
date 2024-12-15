@@ -1,6 +1,8 @@
 using Npgsql;
 using MadokaLiteBlog.Api.Service;
 using MadokaLiteBlog.Api.Data;
+using MadokaLiteBlog.Api.Extensions;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +28,9 @@ builder.Services.AddCors(options =>
                .AllowAnyHeader();
     });
 });
+
+// 自动注册所有 Jsonb 类型处理器
+Assembly.GetExecutingAssembly().RegisterJsonbTypeHandlers();
 
 var app = builder.Build();
 
