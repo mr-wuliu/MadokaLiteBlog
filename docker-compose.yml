@@ -19,18 +19,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # Redis 缓存
-  redis:
-    image: redis:alpine
-    container_name: madoka_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./docker/redis:/data
-    networks:
-      - madoka_net
-    command: redis-server --requirepass madoka_redis
   # 管理人员账号密码: admin@admin.com  admin@
   lsky-pro:
     image: halcyonazure/lsky-pro-docker:latest
@@ -47,14 +35,10 @@ services:
       - DB_DATABASE=lskydb
       - DB_USERNAME=madoka
       - DB_PASSWORD=madoka_postgres
-      - REDIS_HOST=redis
-      - REDIS_PASSWORD=madoka_redis
-      - REDIS_PORT=6379
     networks:
       - madoka_net
     depends_on:
       - postgres
-      - redis
     restart: unless-stopped
 
   pgadmin:
@@ -71,18 +55,6 @@ services:
       - madoka_net
     depends_on:
       - postgres
-
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: madoka_redis_commander
-    environment:
-      - REDIS_HOSTS=local:redis:6379:0:madoka_redis
-    ports:
-      - "8081:8081"
-    networks:
-      - madoka_net
-    depends_on:
-      - redis
 
 networks:
   madoka_net:
