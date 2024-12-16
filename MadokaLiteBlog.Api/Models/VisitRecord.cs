@@ -1,6 +1,7 @@
 
 namespace MadokaLiteBlog.Api.Models;
-
+[AutoBuild]
+[Table("VisitRecord")]
 public class VisitRecord : BaseEntity
 {
     [Key("Id")]

@@ -1,4 +1,5 @@
 namespace MadokaLiteBlog.Api.Models;
+[AutoBuild]
 [Table("Category")]
 public class Category : BaseEntity
 {

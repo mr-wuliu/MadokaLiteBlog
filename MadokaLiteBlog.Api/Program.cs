@@ -1,6 +1,7 @@
 using Npgsql;
 using MadokaLiteBlog.Api.Service;
 using MadokaLiteBlog.Api.Data;
+using MadokaLiteBlog.Api.Extensions;
 using NLog.Web;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,8 @@ builder.Host.UseNLog();
 var connectionString = builder.Configuration.GetConnectionString("PostgresDb");
 
 builder.Services.AddScoped<NpgsqlConnection>(sp => new NpgsqlConnection(connectionString));
+
+builder.Services.AddTransient<DatabaseInitializer>();
 
 builder.Services.AddScoped<PostMapper>();
 builder.Services.AddScoped<PostServer>();
@@ -31,10 +34,14 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 自动注册所有 Jsonb 类型处理器
-// Assembly.GetExecutingAssembly().RegisterJsonbTypeHandlers();
-
 var app = builder.Build();
+
+// 在应用启动时调用Initialize方法
+using (var scope = app.Services.CreateScope())
+{
+    var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
+    initializer.Initialize();
+}
 
 if (app.Environment.IsDevelopment())
 {

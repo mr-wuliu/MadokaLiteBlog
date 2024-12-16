@@ -1,5 +1,6 @@
 namespace MadokaLiteBlog.Api.Models;
-
+[AutoBuild]
+[Table("User")]
 public class User : BaseEntity
 {
     [Key("Id")]

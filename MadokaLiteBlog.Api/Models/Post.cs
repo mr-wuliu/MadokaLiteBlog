@@ -1,5 +1,5 @@
 namespace MadokaLiteBlog.Api.Models;
-
+[AutoBuild]
 [Table("Post")]
 public class Post : BaseEntity
 {

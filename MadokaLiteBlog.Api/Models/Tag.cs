@@ -3,6 +3,7 @@ namespace MadokaLiteBlog.Api.Models;
 /// <summary>
 /// 标签
 /// </summary>
+[AutoBuild]
 [Table("Tag")]
 public class Tag : BaseEntity
 {
