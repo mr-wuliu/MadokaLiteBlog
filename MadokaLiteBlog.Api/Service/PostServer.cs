@@ -1,4 +1,4 @@
-using MadokaLiteBlog.Api.Data;
+using MadokaLiteBlog.Api.Mapper;
 using MadokaLiteBlog.Api.Models;
 
 namespace MadokaLiteBlog.Api.Service;

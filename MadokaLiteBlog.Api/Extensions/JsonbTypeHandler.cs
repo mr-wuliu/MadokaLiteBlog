@@ -3,7 +3,7 @@ using Dapper;
 using System.Text.Json;
 using Npgsql;
 
-namespace MadokaLiteBlog.Api.Data;
+namespace MadokaLiteBlog.Api.Mapper;
 
 public class JsonbTypeHandler<T> : SqlMapper.TypeHandler<T>
 {

@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Reflection;
 using MadokaLiteBlog.Api.Models;
 
-namespace MadokaLiteBlog.Api.Data;
+namespace MadokaLiteBlog.Api.Mapper;
 public abstract class BaseMapper<T> where T : class
 {
     protected readonly NpgsqlConnection _dbContext;

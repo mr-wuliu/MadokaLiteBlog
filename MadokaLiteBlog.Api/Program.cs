@@ -1,6 +1,6 @@
 using Npgsql;
 using MadokaLiteBlog.Api.Service;
-using MadokaLiteBlog.Api.Data;
+using MadokaLiteBlog.Api.Mapper;
 using MadokaLiteBlog.Api.Extensions;
 using NLog.Web;
 

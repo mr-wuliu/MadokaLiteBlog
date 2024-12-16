@@ -1,6 +1,6 @@
 using System.Reflection;
 using Dapper;
-using MadokaLiteBlog.Api.Data;
+using MadokaLiteBlog.Api.Mapper;
 
 namespace MadokaLiteBlog.Api.Extensions;
 
