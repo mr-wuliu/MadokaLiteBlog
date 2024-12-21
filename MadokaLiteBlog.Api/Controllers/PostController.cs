@@ -13,50 +13,47 @@ public class PostController : ControllerBase
         _postServer = postServer;
         _logger = logger;
     }
-    [HttpGet]
-    public IActionResult Get()
+    // 文章嘛, 无非增删改查
+    [HttpPost("insert")]
+    public async Task<IActionResult> InsertPost(Post post)
     {
-        var posts = new List<Post>
+        var postId = await _postServer.AddPost(post);
+        return Ok(new
         {
-            new() { Id = 1, Title = "第一篇文章", Content = "这是测试内容1" },
-            new() { Id = 2, Title = "第二篇文章", Content = "这是测试内容2" }
-        };
-        // 构造一个运行时错误
-        _logger.LogInformation("Get方法被调用");
-        return Ok(posts);
+            Id = postId,
+            Title = post.Title,
+        });
     }
-    [HttpGet("{id}")]
-    public IActionResult Get(long id)
+    [HttpPost("delete")]
+    public async Task<IActionResult> DeletePost(long id)
     {
-        var post = new Post { Id = id, Title = "第" + id + "篇文章", Content = "这是测试内容" + id };
+        var result = await _postServer.DeletePost(id);
+        return Ok(result);
+    }
+    [HttpPost("update")]
+    public async Task<IActionResult> UpdatePost(Post post)
+    {
+        var result = await _postServer.UpdatePost(post);
+        return Ok(result);
+    }
+    [HttpPost("get")]
+    public async Task<IActionResult> GetPost(Post post)
+    {
+        var result = await _postServer.GetPost(post);
+        return Ok(result);
+    }
+    // 分页查询
+    [HttpGet("get")]
+    public async Task<IActionResult> GetPostFromDatabase(int page, int pageSize)
+    {
+        if (page <= 0 || pageSize <= 0)
+        {
+            return BadRequest("Page and pageSize must be greater than 0");
+        }
+        if (pageSize > 20){
+            return BadRequest("pageSize must be less than 20");
+        }
+        var post = await _postServer.GetAllPosts(page, pageSize);
         return Ok(post);
-    }
-    [HttpPost]
-    public async Task<IActionResult> GetPostFromDatabase()
-    {
-        var post = await _postServer.GetAllPosts();
-        return Ok(post);
-    }
-
-    [HttpPost("query")]
-    public async Task<IActionResult> QueryPostFromDatabase()
-    {
-        var post = new Post { Id = 1 };
-        post = await _postServer.GetPost(post);
-        return Ok(post);
-    }
-    [HttpPost("add")]
-    public async Task<IActionResult> AddPostToDatabase()
-    {
-        var post = new Post 
-        { 
-            Title = "第1篇文章",
-            Content = "这是测试内容1",
-            Summary = "这是测试摘要1",
-            IsPublished = true,
-            CreatedAt = DateTime.UtcNow,
-        };
-        await _postServer.AddPost(post);
-        return Ok();
     }
 } 

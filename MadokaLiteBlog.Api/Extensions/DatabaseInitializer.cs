@@ -109,12 +109,17 @@ public class DatabaseInitializer
         var properties = type.GetProperties();
         // 遍历所有的字段
         var columns = properties.Select(p => {
-            var columnName = $"\"{p.Name}\"";
+            // Key属性可以自定义名称:[Key("XX")]
+            var keyAttribute = p.GetCustomAttributes(typeof(KeyAttribute), false).FirstOrDefault() as KeyAttribute;
+            var columnName = $"\"{keyAttribute?.Name ?? p.Name}\"";
             var columnType = GetSqlType(p);
-            var isKey = p.GetCustomAttributes(typeof(KeyAttribute), false).Any();
+            var isKey = p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0;
             var primaryKey = isKey ? "PRIMARY KEY" : "";
             var autoIncrement = isKey ? (columnType == "BIGINT" ? "BIGSERIAL" : "SERIAL") : columnType; // 使用SERIAL或BIGSERIAL
-            return $"{columnName} {autoIncrement} {primaryKey}".Trim();
+            // 检查是否为可空类型
+            var isNullable = !p.PropertyType.IsValueType || Nullable.GetUnderlyingType(p.PropertyType) != null;
+            var nullable = isNullable ? "" : "NOT NULL";
+            return $"{columnName} {autoIncrement} {primaryKey} {nullable}".Trim();
         });
         var createTableQuery = $@"
             CREATE TABLE IF NOT EXISTS ""{tableName}"" (
@@ -134,8 +139,8 @@ public class DatabaseInitializer
         {
             return "JSONB";
         }
-
-        var type = property.PropertyType;
+        // 获取实际类型
+        var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
 
         if (!type.IsPrimitive && type != typeof(string) && type != typeof(DateTime) && type != typeof(decimal) && !type.IsEnum)
         {

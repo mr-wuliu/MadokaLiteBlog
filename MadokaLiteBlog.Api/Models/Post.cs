@@ -12,7 +12,7 @@ public class Post : BaseEntity
     /// </summary>
     public string? Slug { get; set; }
     public string? Status { get; set; }
-    public bool IsPublished { get; set; }
+    public bool? IsPublished { get; set; }
     /// <summary>
     /// 文章的标签
     /// </summary>
