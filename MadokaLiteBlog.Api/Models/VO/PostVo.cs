@@ -12,7 +12,7 @@ public class PostVo
     public string? Content { get; set; }
     public string? Path { get; set; }
     public long? CategoryId { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public int CreatedBy { get; set; }
     public int? UpdatedBy { get; set; }

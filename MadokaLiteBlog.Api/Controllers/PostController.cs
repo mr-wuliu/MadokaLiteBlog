@@ -44,7 +44,7 @@ public class PostController : ControllerBase
         return Ok(result);
     }
     // 分页查询
-    [HttpPost("getpage")]
+    [HttpPost("getAllpages")]
     public async Task<IActionResult> GetPostByPage(int page, int pageSize)
     {
         if (page <= 0 || pageSize <= 0)
@@ -55,6 +55,19 @@ public class PostController : ControllerBase
             return BadRequest("pageSize must be less than 20");
         }
         var post = await _postServer.GetAllPosts(page, pageSize);
+        return Ok(post);
+    }
+    [HttpPost("getpage")]
+    public async Task<IActionResult> GetPostsSummaryByPage(int page, int pageSize)
+    {
+        if (page <= 0 || pageSize <= 0)
+        {
+            return BadRequest("Page and pageSize must be greater than 0");
+        }
+        if (pageSize > 5){
+            return BadRequest("pageSize must be less than 20");
+        }
+        var post = await _postServer.GetPostsSummaryByPage(page, pageSize);
         return Ok(post);
     }
 } 

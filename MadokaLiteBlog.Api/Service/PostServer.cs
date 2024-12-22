@@ -32,6 +32,7 @@ public class PostServer
     public async Task<IEnumerable<PostVo>> GetAllPosts(int page, int pageSize)
     {
         var posts = await _postMapper.GetAllAsync( page, pageSize);
+        _logger.LogInformation("Get all posts page: {page}, pageSize: {pageSize}, count: {count}", page, pageSize, posts.Count());
         return posts.Select(p => new PostVo
         {
             Id = p.Id,
@@ -49,6 +50,19 @@ public class PostServer
             CreatedBy = p.CreatedBy,
             UpdatedBy = p.UpdatedBy,
             IsDeleted = p.IsDeleted,
+        });
+    }
+    public async Task<IEnumerable<PostVo>> GetPostsSummaryByPage(int page, int pageSize)
+    {
+        var posts = await _postMapper.GetAllAsync(page, pageSize,
+            p => new { p.Id, p.Title, p.Summary }
+        );
+        _logger.LogInformation("Get posts summary by page: {page}, pageSize: {pageSize}, count: {count}", page, pageSize, posts.Count());
+        return posts.Select(p => new PostVo
+        {
+            Id = p.Id,
+            Title = p.Title,
+            Summary = p.Summary,
         });
     }
     public async Task<PostVo?> GetPost(PostVo post)

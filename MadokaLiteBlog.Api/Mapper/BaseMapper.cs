@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Reflection;
 using MadokaLiteBlog.Api.Models;
 using MadokaLiteBlog.Api.Common;
+using System.Linq.Expressions;
 
 namespace MadokaLiteBlog.Api.Mapper;
 public abstract class BaseMapper<T> where T : class
@@ -68,7 +69,7 @@ public abstract class BaseMapper<T> where T : class
         }
         return result;
     }
-    public async Task<IEnumerable<T>> GetAllAsync(int page, int pageSize)
+    public async Task<IEnumerable<T>> GetAllAsync(int page, int pageSize, Expression<Func<T, object>>? selector = null)
     {
         if (page <= 0 || pageSize <= 0)
         {
@@ -81,8 +82,23 @@ public abstract class BaseMapper<T> where T : class
             p => p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0)
             ?.Name;
         var offset = (page - 1) * pageSize;
+
+        var columns = "*";
+        if (selector != null)
+        {
+            var body = selector.Body;
+            if (body is NewExpression newExpression && newExpression.Members != null)
+            {
+                columns = string.Join(", ", newExpression.Members.Select(m => $"\"{m.Name}\""));
+            }
+            else if (body is MemberExpression memberExpression)
+            {
+                columns = $"\"{memberExpression.Member.Name}\"";
+            }
+
+        }
         var query = $@"
-            SELECT * FROM ""{tableName}""
+            SELECT {columns} FROM ""{tableName}""
             ORDER BY ""{keyColumn}"" ASC
             LIMIT {pageSize} OFFSET {offset}
         ";
