@@ -21,9 +21,20 @@ a, .btn-link {
 }
 
 .content {
-    padding-top: 1.1rem;
-}
+    /* padding-top: 1.1rem; 原先的代码样式 */
 
+    max-width: 1200px; /* 设置最大宽度 */
+    width: 100%; /* 确保在小屏幕上内容不超出 */
+    background-color: #fff; /* 可选：设置背景颜色 */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* 可选：添加阴影 */
+    padding: 20px; /* 可选：增加内容内边距 */
+    /* 块级元素会默认占据父容器的全部宽度 */
+    /* margin: 0 auto; 设设置了左右自动边距, 浏览器会根据父容器的
+       宽度和元素的宽度自动设定左右边距, 使得元素水平居中
+       0 auto 表示上下为0, 左右自动
+    */
+    margin: 0 auto;
+}
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
 }

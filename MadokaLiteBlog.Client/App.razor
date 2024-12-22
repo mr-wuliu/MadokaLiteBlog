@@ -1,6 +1,8 @@
-﻿<Router AppAssembly="@typeof(App).Assembly">
+﻿<NavMenu />
+<Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        @* 自动聚焦到标题 *@
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
     <NotFound>

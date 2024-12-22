@@ -1,7 +1,7 @@
 .page {
-    position: relative;
     display: flex;
-    flex-direction: column;
+    justify-content: center; /* 水平居中 */
+    padding: 20px; /* 可选：增加一些内边距 */
 }
 
 main {
