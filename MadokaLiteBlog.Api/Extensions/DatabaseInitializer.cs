@@ -1,7 +1,7 @@
 using System.Reflection;
 using Dapper;
-using MadokaLiteBlog.Api.Models;
 using Npgsql;
+using MadokaLiteBlog.Api.Common;
 
 namespace MadokaLiteBlog.Api.Extensions;
 
@@ -23,7 +23,6 @@ public class DatabaseInitializer
 
         foreach (var type in types)
         {
-            _logger.LogInformation("Creating table for type: {type}", type.Name);
             CreateTable(type);
         }
     }
@@ -67,7 +66,7 @@ public class DatabaseInitializer
         foreach (var property in modelProperties)
         {
             var columnName = property.Name;
-            var modelColumnType = GetSqlType(property);
+            var modelColumnType = DataUtils.GetSqlType(property);
 
             if (existingColumns.TryGetValue(columnName, out var existingColumnType))
             {
@@ -105,14 +104,17 @@ public class DatabaseInitializer
         if (TableExists(tableName))
         {
             ValidateTableStructure(type, tableName);
+            _logger.LogInformation("Table {tableName} already exists", tableName);
+            return;
         }
+        _logger.LogInformation("Table {tableName} does not exist, creating...", tableName);
         var properties = type.GetProperties();
         // 遍历所有的字段
         var columns = properties.Select(p => {
             // Key属性可以自定义名称:[Key("XX")]
             var keyAttribute = p.GetCustomAttributes(typeof(KeyAttribute), false).FirstOrDefault() as KeyAttribute;
             var columnName = $"\"{keyAttribute?.Name ?? p.Name}\"";
-            var columnType = GetSqlType(p);
+            var columnType = DataUtils.GetSqlType(p);
             var isKey = p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0;
             var primaryKey = isKey ? "PRIMARY KEY" : "";
             var autoIncrement = isKey ? (columnType == "BIGINT" ? "BIGSERIAL" : "SERIAL") : columnType; // 使用SERIAL或BIGSERIAL
@@ -127,45 +129,7 @@ public class DatabaseInitializer
             )
         ";
         _dbContext.Execute(createTableQuery);
+        _logger.LogInformation("Table {tableName} created successfully", tableName);
     }
-    /// <summary>
-    ///  适用于Postgres的映射规则   
-    /// </summary>
-    /// <param name="property"></param>
-    /// <returns></returns>
-    private string GetSqlType(PropertyInfo property)
-    {
-        if (property.GetCustomAttributes(typeof(JsonbAttribute), false).Any())
-        {
-            return "JSONB";
-        }
-        // 获取实际类型
-        var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
 
-        if (!type.IsPrimitive && type != typeof(string) && type != typeof(DateTime) && type != typeof(decimal) && !type.IsEnum)
-        {
-            return "JSONB";
-        }
-
-        return type switch
-        {
-            Type t when t == typeof(long) || t == typeof(ulong) => "BIGINT",
-            Type t when t == typeof(string) => "TEXT",
-            Type t when t == typeof(DateTime) => "TIMESTAMP",
-            Type t when t == typeof(DateTimeOffset) => "TIMESTAMPTZ",
-            Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => "JSONB",
-            Type t when t == typeof(bool) => "BOOLEAN",
-            Type t when t == typeof(int) || t == typeof(uint) => "INTEGER",
-            Type t when t == typeof(decimal) => "NUMERIC",
-            Type t when t == typeof(double) => "DOUBLE PRECISION",
-            Type t when t == typeof(float) => "REAL",
-            Type t when t == typeof(Guid) => "UUID",
-            Type t when t == typeof(byte[]) => "BYTEA",
-            Type t when t == typeof(DateOnly) => "DATE",
-            Type t when t == typeof(TimeOnly) => "TIME",
-            Type t when t == typeof(sbyte) || t == typeof(short) || t == typeof(ushort) => "SMALLINT",
-            Type t when t == typeof(char) => "CHAR",
-            _ => "TEXT"
-        };
-    }
 }

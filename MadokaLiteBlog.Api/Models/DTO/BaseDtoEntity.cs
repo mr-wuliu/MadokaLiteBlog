@@ -3,7 +3,7 @@ namespace MadokaLiteBlog.Api.Models;
 /// <summary>
 /// 实体基类
 /// </summary>
-public abstract class BaseEntity
+public abstract class BaseDtoEntity
 {
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }

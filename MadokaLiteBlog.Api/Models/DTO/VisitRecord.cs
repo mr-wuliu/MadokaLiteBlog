@@ -2,7 +2,7 @@
 namespace MadokaLiteBlog.Api.Models;
 [AutoBuild]
 [Table("VisitRecord")]
-public class VisitRecord : BaseEntity
+public class VisitRecord : BaseDtoEntity
 {
     [Key("Id")]
     public long Id { get; set; }

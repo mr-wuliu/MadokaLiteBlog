@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using MadokaLiteBlog.Api.Models;
 using MadokaLiteBlog.Api.Service;
+using MadokaLiteBlog.Api.Models.VO;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/post")]
 public class PostController : ControllerBase
 {
     private readonly PostServer _postServer;
@@ -15,8 +15,9 @@ public class PostController : ControllerBase
     }
     // 文章嘛, 无非增删改查
     [HttpPost("insert")]
-    public async Task<IActionResult> InsertPost(Post post)
+    public async Task<IActionResult> InsertPost(PostVo post)
     {
+        _logger.LogInformation("Inserting post: {post}", post.Title);
         var postId = await _postServer.AddPost(post);
         return Ok(new
         {
@@ -31,20 +32,20 @@ public class PostController : ControllerBase
         return Ok(result);
     }
     [HttpPost("update")]
-    public async Task<IActionResult> UpdatePost(Post post)
+    public async Task<IActionResult> UpdatePost(PostVo post)
     {
         var result = await _postServer.UpdatePost(post);
         return Ok(result);
     }
-    [HttpPost("get")]
-    public async Task<IActionResult> GetPost(Post post)
+    [HttpPost("getbyid")]
+    public async Task<IActionResult> GetPostById(long id)
     {
-        var result = await _postServer.GetPost(post);
+        var result = await _postServer.GetPost(new PostVo { Id = id });
         return Ok(result);
     }
     // 分页查询
-    [HttpGet("get")]
-    public async Task<IActionResult> GetPostFromDatabase(int page, int pageSize)
+    [HttpPost("getpage")]
+    public async Task<IActionResult> GetPostByPage(int page, int pageSize)
     {
         if (page <= 0 || pageSize <= 0)
         {

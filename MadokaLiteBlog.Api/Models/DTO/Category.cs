@@ -1,7 +1,7 @@
 namespace MadokaLiteBlog.Api.Models;
 [AutoBuild]
 [Table("Category")]
-public class Category : BaseEntity
+public class Category : BaseDtoEntity
 {
     [Key("Id")]
     public long Id { get; set; }

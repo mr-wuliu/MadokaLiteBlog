@@ -1,6 +1,6 @@
 using MadokaLiteBlog.Api.Mapper;
+using MadokaLiteBlog.Api.Models.VO;
 using MadokaLiteBlog.Api.Models;
-
 namespace MadokaLiteBlog.Api.Service;
 
 public class PostServer
@@ -12,22 +12,92 @@ public class PostServer
         _postMapper = postMapper;
         _logger = logger;
     }
-    public async Task<IEnumerable<Post>> GetAllPosts()
+    public async Task<IEnumerable<PostVo>> GetAllPosts()
     {
-        return await _postMapper.GetAllAsync();
+        var posts = await _postMapper.GetAllAsync();
+        return posts.Select(p => new PostVo
+        {
+            Id = p.Id,
+            Title = p.Title,
+            Slug = p.Slug,
+            Status = p.Status,
+            IsPublished = p.IsPublished,
+            Tags = p.Tags,
+            Summary = p.Summary,
+            Content = p.Content,
+            Path = p.Path,
+            CategoryId = p.CategoryId,
+        });
     }
-    public async Task<IEnumerable<Post>> GetAllPosts(int page, int pageSize)
+    public async Task<IEnumerable<PostVo>> GetAllPosts(int page, int pageSize)
     {
-        return await _postMapper.GetAllAsync( page, pageSize);
+        var posts = await _postMapper.GetAllAsync( page, pageSize);
+        return posts.Select(p => new PostVo
+        {
+            Id = p.Id,
+            Title = p.Title,
+            Slug = p.Slug,
+            Status = p.Status,
+            IsPublished = p.IsPublished,
+            Tags = p.Tags,
+            Summary = p.Summary,
+            Content = p.Content,
+            Path = p.Path,
+            CategoryId = p.CategoryId,
+            CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt,
+            CreatedBy = p.CreatedBy,
+            UpdatedBy = p.UpdatedBy,
+            IsDeleted = p.IsDeleted,
+        });
     }
-    public async Task<Post?> GetPost(Post post)
+    public async Task<PostVo?> GetPost(PostVo post)
     {
-        return await _postMapper.GetByPropertyAsync(post);
+        Post queryPost = new() { Id = post.Id };
+        var p = await _postMapper.GetByPropertyAsync(queryPost);
+        if (p == null)
+        {
+            return null;
+        }
+        return new PostVo
+        {
+            Id = p.Id ,
+            Title = p.Title,
+            Slug = p.Slug,
+            Status = p.Status,
+            IsPublished = p.IsPublished,
+            Tags = p.Tags,
+            Summary = p.Summary,
+            Content = p.Content,
+            Path = p.Path,
+            CategoryId = p.CategoryId,
+            CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt,
+            CreatedBy = p.CreatedBy,
+            UpdatedBy = p.UpdatedBy,
+            IsDeleted = p.IsDeleted,
+        };
     }
-    public async Task<int> AddPost(Post post)
+    public async Task<int> AddPost(PostVo post)
     {
-        var postId = await _postMapper.InsertAsync(post);
-        _logger.LogInformation("Post operation completed. Action: {Action}, Id: {Id}, Title: {Title}", "insert", postId, post.Title);
+        _logger.LogDebug("Inserting post: {post}", post.Title);
+        Post postEntity = new()
+        {
+            Title = post.Title,
+            Slug = post.Slug,
+            Status = post.Status,
+            IsPublished = post.IsPublished,
+            Tags = post.Tags,
+            Summary = post.Summary,
+            Content = post.Content,
+            Path = post.Path,
+            CategoryId = post.CategoryId,
+            CreatedAt = DateTime.Now,
+            // TODO: 获取当前用户id
+            CreatedBy = 1,
+        };
+        var postId = await _postMapper.InsertAsync(postEntity);
+        _logger.LogDebug("Post operation completed. Action: {Action}, Id: {Id}, Title: {Title}", "insert", postId, post.Title);
         return postId;
     }
     public async Task<int> DeletePost(long id)
@@ -36,9 +106,25 @@ public class PostServer
         _logger.LogInformation("Post operation completed. Action: {Action}, Id: {Id}, Result: {Result}", "delete", id, result);
         return result;
     }
-    public async Task<int> UpdatePost(Post post)
+    public async Task<int> UpdatePost(PostVo post)
     {
-        var result = await _postMapper.UpdateAsync(post);
+        Post postEntity = new()
+        {
+            Id = post.Id,
+            Title = post.Title,
+            Slug = post.Slug,
+            Status = post.Status,
+            IsPublished = post.IsPublished,
+            Tags = post.Tags,
+            Summary = post.Summary,
+            Content = post.Content,
+            Path = post.Path,
+            CategoryId = post.CategoryId,
+            UpdatedAt = DateTime.Now,
+            // TODO: 获取当前用户id
+            UpdatedBy = 1,
+        };
+        var result = await _postMapper.UpdateAsync(postEntity);
         _logger.LogInformation("Post operation completed. Action: {Action}, Id: {Id}, Result: {Result}", "update", post.Id, result);
         return result;
     }

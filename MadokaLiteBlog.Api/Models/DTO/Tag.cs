@@ -5,7 +5,7 @@ namespace MadokaLiteBlog.Api.Models;
 /// </summary>
 [AutoBuild]
 [Table("Tag")]
-public class Tag : BaseEntity
+public class Tag : BaseDtoEntity
 {
     [Key("Id")]
     public long Id { get; set; }

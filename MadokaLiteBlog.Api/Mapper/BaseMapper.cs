@@ -3,6 +3,7 @@ using Npgsql;
 using System.Text.Json;
 using System.Reflection;
 using MadokaLiteBlog.Api.Models;
+using MadokaLiteBlog.Api.Common;
 
 namespace MadokaLiteBlog.Api.Mapper;
 public abstract class BaseMapper<T> where T : class
@@ -14,40 +15,7 @@ public abstract class BaseMapper<T> where T : class
         _dbContext = dbContext;
     }
 
-    /// <summary>
-    /// 是否应该序列化为 JSONB 类型
-    /// </summary>
-    /// <param name="property"></param>
-    /// <returns></returns>
-    protected virtual bool ShouldSerializeAsJson(PropertyInfo property)
-    {
-        // 1. 显式标记了 JsonbAttribute 的属性
-        if (property.GetCustomAttributes(typeof(JsonbAttribute), false).Length > 0)
-            return true;
-
-        var type = property.PropertyType;
-
-        // 2. 集合类型
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>))
-            return true;
-
-        // 3. 复杂类型（不是基本类型且不是字符串）
-        if (!type.IsPrimitive && type != typeof(string) && type != typeof(DateTime) 
-            && type != typeof(decimal) && !type.IsEnum)
-        {
-            // 如果是自定义类型，检查是否继承自 BaseEntity
-            if (typeof(BaseEntity).IsAssignableFrom(type))
-            {
-                // BaseEntity 的子类使用 ID 引用
-                return false;
-            }
-            return true;
-        }
-
-        return false;
-    }
-
-    protected virtual async Task<T?> MapFromReader(IDictionary<string, object> data)
+    protected virtual T? MapFromReader(IDictionary<string, object> data)
     {
         var entity = Activator.CreateInstance<T>();
         var properties = typeof(T).GetProperties();
@@ -59,7 +27,7 @@ public abstract class BaseMapper<T> where T : class
             var value = data[prop.Name];
             if (value == null || value is DBNull) continue;
 
-            if (ShouldSerializeAsJson(prop))
+            if (DataUtils.GetSqlType(prop) == "JSONB")
             {
                 if (value is string json)
                 {
@@ -67,33 +35,12 @@ public abstract class BaseMapper<T> where T : class
                     prop.SetValue(entity, deserializedValue);
                 }
             }
-            else if (typeof(BaseEntity).IsAssignableFrom(prop.PropertyType))
-            {
-                // 如果是 BaseEntity 的子类，通过 ID 加载实体
-                if (value is long id)
-                {
-                    var entityType = prop.PropertyType;
-                    var mapperType = typeof(BaseMapper<>).MakeGenericType(entityType);
-                    var mapper = Activator.CreateInstance(mapperType, _dbContext);
-                    
-                    if (mapper != null)
-                    {
-                        var method = mapperType.GetMethod("GetByIdAsync");
-                        var task = method?.Invoke(mapper, new object[] { id }) as Task;
-                        if (task != null)
-                        {
-                            await task.ConfigureAwait(false);
-                            var resultProperty = task.GetType().GetProperty("Result");
-                            var result = resultProperty?.GetValue(task);
-                            prop.SetValue(entity, result);
-                        }
-                    }
-                }
-            }
+            // TODO: 对于继承于BaseEntity的实体, 在保存/读取的时候, 可以考虑使用ID来获取实体
             else
             {
-                // 基本类型直接设置
-                prop.SetValue(entity, Convert.ChangeType(value, prop.PropertyType));
+                var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                var convertedValue = Convert.ChangeType(value, targetType);
+                prop.SetValue(entity, convertedValue);
             }
         }
 
@@ -112,7 +59,7 @@ public abstract class BaseMapper<T> where T : class
         {
             if (parser(reader) is IDictionary<string, object> data)
             {
-                var entity = await MapFromReader(data);
+                var entity = MapFromReader(data);
                 if (entity != null)
                 {
                     result.Add(entity);
@@ -148,7 +95,7 @@ public abstract class BaseMapper<T> where T : class
         {
             if (parser(reader) is IDictionary<string, object> data)
             {
-                var entity = await MapFromReader(data);
+                var entity = MapFromReader(data);
                 if (entity != null)
                 {
                     result.Add(entity);
@@ -180,7 +127,7 @@ public abstract class BaseMapper<T> where T : class
             var parser = reader.GetRowParser<dynamic>();
             if (parser(reader) is IDictionary<string, object> data)
             {
-                return await MapFromReader(data);
+                return MapFromReader(data);
             }
         }
 
@@ -202,20 +149,10 @@ public abstract class BaseMapper<T> where T : class
 
             columns.Add($"\"{prop.Name}\"");
 
-            if (ShouldSerializeAsJson(prop))
+            if (DataUtils.GetSqlType(prop) == "JSONB")
             {
                 values.Add($"@{prop.Name}::jsonb");
                 parameters.Add(prop.Name, JsonSerializer.Serialize(value, JsonSerializerOptions.Default));
-            }
-            else if (typeof(BaseEntity).IsAssignableFrom(prop.PropertyType))
-            {
-                // 如果是 BaseEntity 的子类，只存储 ID
-                var idProp = prop.PropertyType.GetProperty("Id");
-                if (idProp != null)
-                {
-                    values.Add($"@{prop.Name}");
-                    parameters.Add(prop.Name, idProp.GetValue(value));
-                }
             }
             else
             {
@@ -239,46 +176,47 @@ public abstract class BaseMapper<T> where T : class
     public async Task<int> UpdateAsync(T entity)
     {
         var properties = typeof(T).GetProperties();
-        var keyProperty = properties.FirstOrDefault(p => p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0);
-        var keyValue = (keyProperty?.GetValue(entity)) ?? throw new Exception("Key 属性值不能为空");
-        var columns = new List<string>();
-        var values = new List<string>();
+        var keyProperty = properties.FirstOrDefault(
+            p => p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0)
+            ?? throw new Exception("类中没有KeyAttribute属性");
+        var keyName = keyProperty.GetCustomAttribute<KeyAttribute>()?.Name 
+            ?? keyProperty.Name;
+        var keyValue = keyProperty.GetValue(entity) 
+            ?? throw new Exception("Key 属性值不能为空");
+        
         var parameters = new DynamicParameters();
+        var updatePairs = new List<string>();
 
         foreach (var prop in properties)
         {
+            // 跳过主键属性
             if (prop.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0) continue;
+            
             var value = prop.GetValue(entity);
             if (value == null) continue;
 
-            columns.Add($"\"{prop.Name}\"");
-
-            if (ShouldSerializeAsJson(prop))
+            string paramName = $"@{prop.Name}";
+            
+            if (DataUtils.GetSqlType(prop) == "JSONB")
             {
-                values.Add($"@{prop.Name}::jsonb");
-                parameters.Add(prop.Name, JsonSerializer.Serialize(value, JsonSerializerOptions.Default));
-            }
-            else if (typeof(BaseEntity).IsAssignableFrom(prop.PropertyType))
-            {
-                // 如果是 BaseEntity 的子类，只存储 ID
-                var idProp = prop.PropertyType.GetProperty("Id");
-                if (idProp != null)
-                {
-                    values.Add($"@{prop.Name}");
-                    parameters.Add(prop.Name, idProp.GetValue(value));
-                }
+                updatePairs.Add($"\"{prop.Name}\" = {paramName}::jsonb");
+                parameters.Add(prop.Name, JsonSerializer.Serialize(value));
             }
             else
             {
-                values.Add($"@{prop.Name}");
+                updatePairs.Add($"\"{prop.Name}\" = {paramName}");
                 parameters.Add(prop.Name, value);
             }
         }
 
-        var tableAttribute = typeof(T).GetCustomAttributes(typeof(TableAttribute), false).FirstOrDefault(); 
-        var tableName = tableAttribute != null ? (tableAttribute as TableAttribute)?.Name : typeof(T).Name;
+        var tableName = typeof(T).GetCustomAttribute<TableAttribute>()?.Name ?? typeof(T).Name;
+        parameters.Add("Key", keyValue);
 
-        var sql = $"UPDATE \"{tableName}\" SET {string.Join(", ", columns)} WHERE Id = {keyValue}";
+        var sql = $@"
+            UPDATE ""{tableName}"" 
+            SET {string.Join(", ", updatePairs)} 
+            WHERE ""{keyName}"" = @Key";
+
         return await _dbContext.ExecuteAsync(sql, parameters);
     }
     public async Task<int> DeleteAsync(object id)
