@@ -71,8 +71,10 @@ public class PostServer
         var p = await _postMapper.GetByPropertyAsync(queryPost);
         if (p == null)
         {
+            _logger.LogInformation("Post not found: {Id}", post.Id);
             return null;
         }
+        _logger.LogInformation("Get post by id: {Id}", post.Id);
         return new PostVo
         {
             Id = p.Id ,
@@ -122,9 +124,14 @@ public class PostServer
     }
     public async Task<int> UpdatePost(PostVo post)
     {
+        if (post.Id == null || post.Id <= 0)
+        {
+            _logger.LogError("Invalid post ID: {Id}", post.Id);
+            return 0;
+        }
         Post postEntity = new()
         {
-            Id = post.Id,
+            Id = (long)post.Id,
             Title = post.Title,
             Slug = post.Slug,
             Status = post.Status,

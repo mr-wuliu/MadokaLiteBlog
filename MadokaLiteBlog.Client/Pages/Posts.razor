@@ -1,5 +1,6 @@
 @page "/posts"
 @inject HttpClient Http
+@inject NavigationManager NavigationManager
 
 <PageTitle>Posts</PageTitle>
 
@@ -12,7 +13,7 @@ else
 {
     @foreach (var post in posts)
     {
-            <div class="card mb-3">
+        <div class="card mb-3" style="cursor: pointer;" @onclick="() => NavigateToArticle(post.Id)">
             <div class="card-body">
                 <h5 class="card-title">@post.Title</h5>
                 <p class="card-text">@post.Summary</p>
@@ -86,5 +87,10 @@ else
             currentPage++;
             await LoadData();
         }
+    }
+
+    private void NavigateToArticle(long id)
+    {
+        NavigationManager.NavigateTo($"/article/{id}");
     }
 } 

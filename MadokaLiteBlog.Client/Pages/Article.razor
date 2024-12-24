@@ -1,0 +1,114 @@
+@page "/article/{Id:long}"
+@using Markdig
+@inject HttpClient Http
+@inject IJSRuntime JsRuntime
+
+<PageTitle>@post?.Title</PageTitle>
+
+@if (post == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="container mt-4">
+        <h1 class="mb-4">@post.Title</h1>
+        <div class="article-content" id="article-content">
+            @((MarkupString)renderedContent)
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public long Id { get; set; }
+    private Post? post;
+    private string renderedContent = string.Empty;
+
+    private string RemoveYamlFrontMatter(string content)
+    {
+        if (string.IsNullOrEmpty(content)) return content;
+
+        var lines = content.Split('\n');
+        var startIndex = -1;
+        var endIndex = -1;
+        // 找到 YAML front matter 的开始和结束
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (lines[i].Trim() == "---")
+            {
+                if (startIndex == -1)
+                {
+                    startIndex = i;
+                }
+                else
+                {
+                    endIndex = i;
+                    break;
+                }
+            }
+        }
+        if (startIndex == 0 && endIndex > startIndex)
+        {
+            return string.Join("\n", lines.Skip(endIndex + 1))
+                        .TrimStart();
+        }
+
+        return content;
+    }
+
+    private string ProcessContent(string content)
+    {
+        if (string.IsNullOrEmpty(content)) return content;
+
+        try
+        {
+            content = RemoveYamlFrontMatter(content);
+            var pipeline = new MarkdownPipelineBuilder()
+                .UseAdvancedExtensions()
+                .UseMathematics()
+                .Build();
+            return Markdown.ToHtml(content, pipeline);
+        }
+        catch (Exception ex)
+        {
+            return $"<p>Error processing content: {ex.Message}</p>";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var response = await Http.PostAsync($"api/post/getbyid?id={Id}", new StringContent(""));
+            
+            if (response.IsSuccessStatusCode)
+            {
+                post = await response.Content.ReadFromJsonAsync<Post>();
+                if (post?.Content != null)
+                {
+                    renderedContent = ProcessContent(post.Content);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            renderedContent = $"<p>Error loading article: {ex.Message}</p>";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (post?.Content != null)
+        {
+            try
+            {
+                await JsRuntime.InvokeVoidAsync("renderMath");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"MathJax error: {ex.Message}");
+            }
+        }
+    }
+} 
