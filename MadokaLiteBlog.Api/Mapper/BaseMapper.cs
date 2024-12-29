@@ -16,38 +16,6 @@ public abstract class BaseMapper<T> where T : class
         _dbContext = dbContext;
     }
 
-    protected virtual T? MapFromReader(IDictionary<string, object> data)
-    {
-        var entity = Activator.CreateInstance<T>();
-        var properties = typeof(T).GetProperties();
-
-        foreach (var prop in properties)
-        {
-            if (!data.ContainsKey(prop.Name)) continue;
-
-            var value = data[prop.Name];
-            if (value == null || value is DBNull) continue;
-
-            if (DataUtils.GetSqlType(prop) == "JSONB")
-            {
-                if (value is string json)
-                {
-                    var deserializedValue = JsonSerializer.Deserialize(json, prop.PropertyType);
-                    prop.SetValue(entity, deserializedValue);
-                }
-            }
-            // TODO: 对于继承于BaseEntity的实体, 在保存/读取的时候, 可以考虑使用ID来获取实体
-            else
-            {
-                var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
-                var convertedValue = Convert.ChangeType(value, targetType);
-                prop.SetValue(entity, convertedValue);
-            }
-        }
-
-        return entity;
-    }
-
     public async Task<IEnumerable<T>> GetAllAsync()
     {
         var result = new List<T>();
@@ -124,6 +92,59 @@ public abstract class BaseMapper<T> where T : class
     {
         return await _dbContext.QueryFirstOrDefaultAsync<T>($"SELECT * FROM \"{typeof(T).Name}\" WHERE Id = @Id", new { Id = id });
     }
+    /// <summary>
+    /// 根据属性值获取实体
+    /// </summary>
+    /// <param name="value"></param>
+    /// <param name="selector"></param>
+    /// <returns></returns>
+    public async Task<IEnumerable<T>> GetByPropertyAsync(Expression<Func<T, bool>> predicate, Expression<Func<T, object>>? selector = null)
+    {
+        var entityType = typeof(T);
+        var tableName = entityType.GetCustomAttribute<TableAttribute>()?.Name ?? entityType.Name;
+        
+        // 处理选择的列
+        var columns = "*";
+        if (selector != null)
+        {
+            var body = selector.Body;
+            if (body is NewExpression newExpression && newExpression.Members != null)
+            {
+                columns = string.Join(", ", newExpression.Members.Select(m => $"\"{m.Name}\""));
+            }
+            else if (body is MemberExpression memberExpression)
+            {
+                columns = $"\"{memberExpression.Member.Name}\"";
+            }
+        }
+
+        // 解析where条件
+        var whereClause = TranslatePredicateToSql(predicate);
+        var parameters = new DynamicParameters();
+        
+        var query = $@"
+            SELECT {columns} 
+            FROM ""{tableName}""
+            WHERE {whereClause.Sql}
+        ";
+
+        var result = new List<T>();
+        using var reader = await _dbContext.ExecuteReaderAsync(query, whereClause.Parameters);
+        var parser = reader.GetRowParser<dynamic>();
+        
+        while (await reader.ReadAsync())
+        {
+            if (parser(reader) is IDictionary<string, object> data)
+            {
+                var entity = MapFromReader(data);
+                if (entity != null)
+                {
+                    result.Add(entity);
+                }
+            }
+        }
+        return result;
+    }
     public async Task<T?> GetByPropertyAsync(object value)
     {
         var keyProperty = typeof(T).GetProperties()
@@ -188,7 +209,6 @@ public abstract class BaseMapper<T> where T : class
     /// 更新实体        
     /// </summary>
     /// <param name="entity"></param>
-    /// <returns></returns>
     public async Task<int> UpdateAsync(T entity)
     {
         var properties = typeof(T).GetProperties();
@@ -253,5 +273,79 @@ public abstract class BaseMapper<T> where T : class
             throw new ArgumentException($"Invalid identifier: {identifier}");
         }
         return identifier;
+    }
+    protected virtual T? MapFromReader(IDictionary<string, object> data)
+    {
+        var entity = Activator.CreateInstance<T>();
+        var properties = typeof(T).GetProperties();
+
+        foreach (var prop in properties)
+        {
+            if (!data.ContainsKey(prop.Name)) continue;
+
+            var value = data[prop.Name];
+            if (value == null || value is DBNull) continue;
+
+            if (DataUtils.GetSqlType(prop) == "JSONB")
+            {
+                if (value is string json)
+                {
+                    var deserializedValue = JsonSerializer.Deserialize(json, prop.PropertyType);
+                    prop.SetValue(entity, deserializedValue);
+                }
+            }
+            // TODO: 对于继承于BaseEntity的实体, 在保存/读取的时候, 可以考虑使用ID来获取实体
+            else
+            {
+                var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                var convertedValue = Convert.ChangeType(value, targetType);
+                prop.SetValue(entity, convertedValue);
+            }
+        }
+
+        return entity;
+    }
+    private class SqlWhereClause
+    {
+        public string Sql { get; set; } = string.Empty;
+        public DynamicParameters Parameters { get; set; } = new DynamicParameters();
+    }
+
+    private SqlWhereClause TranslatePredicateToSql(Expression<Func<T, bool>> predicate)
+    {
+        var result = new SqlWhereClause();
+        var parameterCounter = 0;
+
+        void VisitBinary(BinaryExpression binary)
+        {
+            if (binary.Left is MemberExpression member)
+            {
+                var paramName = $"p{parameterCounter++}";
+                var propertyName = member.Member.Name;
+                
+                // 处理不同的比较操作符
+                string operation = binary.NodeType switch
+                {
+                    ExpressionType.Equal => "=",
+                    ExpressionType.NotEqual => "!=",
+                    ExpressionType.GreaterThan => ">",
+                    ExpressionType.GreaterThanOrEqual => ">=",
+                    ExpressionType.LessThan => "<",
+                    ExpressionType.LessThanOrEqual => "<=",
+                    _ => throw new NotSupportedException($"不支持的操作符: {binary.NodeType}")
+                };
+
+                var value = Expression.Lambda(binary.Right).Compile().DynamicInvoke();
+                result.Sql = $"\"{propertyName}\" {operation} @{paramName}";
+                result.Parameters.Add(paramName, value);
+            }
+        }
+
+        if (predicate.Body is BinaryExpression binaryExpression)
+        {
+            VisitBinary(binaryExpression);
+        }
+
+        return result;
     }
 }
