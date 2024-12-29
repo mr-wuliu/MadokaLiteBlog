@@ -1,12 +1,15 @@
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
+
 /// <summary>
 /// 图床管理, 上传图片使用开放的公共接口
 /// 获取token使用内部的私有接口, 需要登录验证
 /// </summary>
 [ApiController]
 [Route("api/image")]
-public class ImageController : ControllerBase
+public class ImageController : BaseController
 {
     private readonly ImageService _imageService;
     private readonly ILogger<ImageController> _logger;
@@ -16,10 +19,14 @@ public class ImageController : ControllerBase
         _imageService = imageService;
         _logger = logger;
     }
-
+    [Authorize]
     [HttpPost("upload")]
     public async Task<IActionResult> Upload(IFormFile file)
     {
+        if (!TryGetCurrentUser(out var username))
+        {
+            return Unauthorized();
+        }
         if (!_imageService.IsEnabled())
         {
             return BadRequest("Image storage service is not enabled");
