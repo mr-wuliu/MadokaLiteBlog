@@ -19,28 +19,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  # 管理人员账号密码: admin@admin.com  admin@
-  lsky-pro:
-    image: halcyonazure/lsky-pro-docker:latest
-    container_name: madoka_lsky
-    ports:
-      - "8090:8089"
-    volumes:
-      - ./docker/lsky/uploads:/var/www/html/storage/app/uploads
-      - ./docker/lsky/config:/var/www/html/config
-    environment:
-      - DB_CONNECTION=pgsql
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_DATABASE=lskydb
-      - DB_USERNAME=madoka
-      - DB_PASSWORD=madoka_postgres
-    networks:
-      - madoka_net
-    depends_on:
-      - postgres
-    restart: unless-stopped
-
   pgadmin:
     image: dpage/pgadmin4
     container_name: madoka_pgadmin

@@ -3,6 +3,7 @@ using MadokaLiteBlog.Api.Service;
 using MadokaLiteBlog.Api.Mapper;
 using MadokaLiteBlog.Api.Extensions;
 using NLog.Web;
+using System.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 // 配置日志
@@ -21,6 +22,9 @@ builder.Services.AddScoped<PostServer>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<ImageService>();
 builder.Services.AddSwaggerGen();
 
 // 添加 CORS 配置

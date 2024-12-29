@@ -67,7 +67,11 @@ public class PostServer
     }
     public async Task<PostVo?> GetPost(PostVo post)
     {
-        Post queryPost = new() { Id = post.Id };
+        if (post.Id == null || post.Id <= 0)
+        {
+            throw new ArgumentException("Invalid post ID");
+        }
+        Post queryPost = new() { Id = post.Id ?? 0};
         var p = await _postMapper.GetByPropertyAsync(queryPost);
         if (p == null)
         {

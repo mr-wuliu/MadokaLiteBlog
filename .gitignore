@@ -1,3 +1,5 @@
 **/bin/
 **/obj/
 docker/*
+**/appsettings.json
+**/appsettings.Development.json
