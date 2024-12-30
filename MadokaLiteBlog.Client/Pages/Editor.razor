@@ -1,0 +1,82 @@
+@page "/editor"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>编辑文章</PageTitle>
+
+<div class="container mt-4">
+    <EditForm Model="@post" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        
+        <div class="form-group mb-3">
+            <label for="title">标题</label>
+            <InputText id="title" @bind-Value="post.Title" class="form-control" />
+            <ValidationMessage For="@(() => post.Title)" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="summary">摘要</label>
+            <InputTextArea id="summary" @bind-Value="post.Summary" class="form-control" rows="3" />
+            <ValidationMessage For="@(() => post.Summary)" />
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="content">正文 (Markdown)</label>
+            <div class="editor-container">
+                <InputTextArea id="content" @bind-Value="post.Content" class="form-control" rows="20" />
+            </div>
+            <ValidationMessage For="@(() => post.Content)" />
+        </div>
+
+        <div class="preview-container mb-3">
+            <h4>预览</h4>
+            <div class="preview-content">
+                @((MarkupString)renderedContent)
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">发布文章</button>
+    </EditForm>
+</div>
+
+@code {
+    private Post post = new();
+    private string renderedContent = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (!authState.User.Identity?.IsAuthenticated ?? true)
+        {
+            NavigationManager.NavigateTo("/login");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/post/insert", post);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<PostResponse>();
+                if (result?.Id != null)
+                {
+                    NavigationManager.NavigateTo($"/article/{result.Id}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private class PostResponse
+    {
+        public long Id { get; set; }
+        public string? Title { get; set; }
+    }
+}

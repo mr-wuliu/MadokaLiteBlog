@@ -1,0 +1,21 @@
+.editor-container {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.preview-container {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.preview-content {
+    min-height: 200px;
+}
+
+::deep textarea {
+    font-family: monospace;
+    resize: vertical;
+} 
