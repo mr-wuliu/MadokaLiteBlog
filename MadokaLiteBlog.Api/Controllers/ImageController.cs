@@ -23,7 +23,8 @@ public class ImageController : BaseController
     [HttpPost("upload")]
     public async Task<IActionResult> Upload(IFormFile file)
     {
-        if (!TryGetCurrentUser(out var username))
+        var username = User.Identity?.Name;
+        if (string.IsNullOrEmpty(username))
         {
             return Unauthorized();
         }
@@ -31,11 +32,9 @@ public class ImageController : BaseController
         {
             return BadRequest("Image storage service is not enabled");
         }
-
         try
         {
             var imageId = await _imageService.UploadImageAsync(file);
-            // 返回特殊格式的标记
             return Ok(new { 
                 marker = $"[s3://{imageId}]"
             });

@@ -1,51 +1,119 @@
 using MadokaLiteBlog.Api.Models.VO;
 using Microsoft.AspNetCore.Mvc;
+using MadokaLiteBlog.Api.Service;
 using MadokaLiteBlog.Api.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-
-// 用于测试的请求模型
-public class TestLoginRequest
-{
-    public required string Username { get; set; }
-    public required string Password { get; set; }
-}
+using Microsoft.AspNetCore.Authorization;
 
 [ApiController]
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
     private readonly IConfiguration _configuration;
-    private readonly RsaHelper _rsaHelper;
     private readonly ILogger<AuthController> _logger;
+    // 添加用户服务接口
+    private readonly UserServer _userService;
+    private readonly JwtHelper _jwtHelper;
     private readonly IWebHostEnvironment _environment;
-
+    private readonly RsaHelper _rsaHelper;
     public AuthController(
-        IConfiguration configuration, 
-        RsaHelper rsaHelper,
+        IConfiguration configuration,
         ILogger<AuthController> logger,
-        IWebHostEnvironment environment)
+        UserServer userService,
+        JwtHelper jwtHelper,
+        IWebHostEnvironment environment,
+        RsaHelper rsaHelper)
     {
         _configuration = configuration;
-        _rsaHelper = rsaHelper;
         _logger = logger;
+        _userService = userService;
+        _jwtHelper = jwtHelper;
         _environment = environment;
+        _rsaHelper = rsaHelper;
+    }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest loginRequest)
+    {
+        _logger.LogInformation("用户 {} 尝试登录", loginRequest.Username);
+        _logger.LogInformation("密码: {}", loginRequest.Password);
+        if (string.IsNullOrEmpty(loginRequest.Username) || string.IsNullOrEmpty(loginRequest.Password))
+        {
+            return BadRequest("用户名或密码不能为空");
+        }
+        var privateKey = _configuration["Rsa:PrivateKey"];
+        if (string.IsNullOrEmpty(privateKey))
+        {
+            return BadRequest("私钥不存在");
+        }
+        var password = RsaHelper.Decrypt(loginRequest.Password, privateKey);
+        if (!await _userService.ValidatePasswordAsync(loginRequest.Username, password))
+        {
+            return BadRequest("用户名或密码错误");
+        }
+        _logger.LogInformation("用户 {} 登录成功", loginRequest.Username);
+        
+        var token = _jwtHelper.GenerateJwtToken(loginRequest.Username);
+        return Ok(new LoginResponse { 
+            Token = token,
+            Username = loginRequest.Username 
+        });
+    }
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest registerRequest)
+    {
+        if (string.IsNullOrEmpty(registerRequest.Username) || string.IsNullOrEmpty(registerRequest.Password))
+        {
+            return BadRequest("用户名或密码不能为空");
+        }
+        var userId = await _userService.RegisterUserAsync(registerRequest);
+        if (userId == 0)
+        {
+            return BadRequest("用户名已存在");
+        }
+        return Ok(userId);
+    }
+    [Authorize]
+    [HttpPost("info")]
+    public async Task<IActionResult> Info()
+    {
+        var username = User.Identity?.Name;
+        if (string.IsNullOrEmpty(username))
+        {
+            return BadRequest("用户未登录");
+        }
+        var user = await _userService.GetUserByUsernameAsync(username);
+        return Ok(user);
+    }
+    [HttpPost("get-encrypt-password")]
+    public IActionResult GetEncryptPassword(string password)
+    {
+        var publicKey = _configuration["Rsa:PublicKey"];
+        if (string.IsNullOrEmpty(publicKey))
+        {
+            return BadRequest("公钥不存在");
+        }
+        return Ok(RsaHelper.Encrypt(password, publicKey));
+    }
+    [HttpGet("public-key")]
+    public IActionResult GetPublicKey()
+    {
+        var publicKey = _configuration["Rsa:PublicKey"];
+        if (string.IsNullOrEmpty(publicKey))
+        {
+            return NotFound("未找到公钥");
+        }
+        return Ok(new { publicKey });
     }
 
     [HttpPost("generate-keys")]
     public async Task<IActionResult> GenerateKeys()
     {
-        // 1. 只允许在开发环境使用
         if (!_environment.IsDevelopment())
         {
             _logger.LogWarning("生产环境尝试生成密钥");
             return NotFound();
         }
 
-        // 2. 只允许本地请求
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
         if (clientIp != "127.0.0.1" && clientIp != "::1")
         {
@@ -63,125 +131,6 @@ public class AuthController : ControllerBase
         {
             _logger.LogError(ex, "生成RSA密钥对时发生错误");
             return StatusCode(500, "生成密钥失败");
-        }
-    }
-
-    [HttpGet("public-key")]
-    public IActionResult GetPublicKey()
-    {
-        var publicKey = _configuration["Rsa:PublicKey"];
-        if (string.IsNullOrEmpty(publicKey))
-        {
-            return NotFound("未找到公钥");
-        }
-        return Ok(new { publicKey });
-    }
-
-    [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequest request)
-    {
-        try
-        {
-            var privateKey = _configuration["Rsa:PrivateKey"];
-            if (string.IsNullOrEmpty(privateKey))
-            {
-                _logger.LogError("未找到RSA私钥");
-                return StatusCode(500, "服务器配置错误");
-            }
-
-            var decryptedPassword = RsaHelper.Decrypt(request.EncryptedPassword, privateKey);
-            
-            // TODO: 验证用户名和解密后的密码
-            if (!ValidateUser(request.Username, decryptedPassword))
-            {
-                return Unauthorized("用户名或密码错误");
-            }
-
-            var token = GenerateJwtToken(request.Username);
-            
-            Response.Cookies.Append("X-Access-Token", token, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.Now.AddMinutes(15)
-            });
-
-            return Ok(new LoginResponse {Token = token });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "登录过程中发生错误");
-            return BadRequest("登录失败");
-        }
-    }
-
-    private bool ValidateUser(string username, string password)
-    {
-        // TODO: 这里应该实现真实的用户验证逻辑
-        // 例如：查询数据库，验证用户名和密码
-        
-        // 这里仅作示例，实际使用时应替换为真实的验证逻辑
-        return username == "admin" && password == "123456";
-    }
-
-    private string GenerateJwtToken(string username)
-    {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.Name, username),
-            new Claim(ClaimTypes.Role, "User")
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.Now.AddMinutes(Convert.ToDouble(_configuration["Jwt:ExpireMinutes"] ?? "60")),
-            signingCredentials: credentials
-        );
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
-
-    [HttpPost("encrypt-login")]
-    public IActionResult EncryptLoginRequest([FromBody] TestLoginRequest request)
-    {
-        // 仅在开发环境可用
-        if (!_environment.IsDevelopment())
-        {
-            return NotFound();
-        }
-
-        try
-        {
-            var publicKey = _configuration["Rsa:PublicKey"];
-            if (string.IsNullOrEmpty(publicKey))
-            {
-                return NotFound("未找到公钥，请先生成密钥对");
-            }
-
-            // 加密密码
-            var encryptedPassword = RsaHelper.Encrypt(request.Password, publicKey);
-
-            // 返回可以直接用于登录接口的请求格式
-            return Ok(new
-            {
-                loginRequest = new LoginRequest
-                {
-                    Username = request.Username,
-                    EncryptedPassword = encryptedPassword
-                },
-                curl = $"curl -X POST http://localhost:5000/api/auth/login -H \"Content-Type: application/json\" -d '{{\"username\":\"{request.Username}\",\"encryptedPassword\":\"{encryptedPassword}\"}}'"
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "加密登录请求时发生错误");
-            return StatusCode(500, "加密失败");
         }
     }
 }

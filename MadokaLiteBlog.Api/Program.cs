@@ -20,6 +20,8 @@ builder.Services.AddTransient<DatabaseInitializer>();
 
 builder.Services.AddScoped<PostMapper>();
 builder.Services.AddScoped<PostServer>();
+builder.Services.AddScoped<UserMapper>();
+builder.Services.AddScoped<UserServer>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -50,7 +52,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key is not configured")))
         };
     });
-
+builder.Services.AddScoped<JwtHelper>();
 builder.Services.AddScoped<RsaHelper>();
 // 添加 CORS 配置
 builder.Services.AddCors(options =>

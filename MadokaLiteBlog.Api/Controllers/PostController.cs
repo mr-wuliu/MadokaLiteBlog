@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MadokaLiteBlog.Api.Service;
 using MadokaLiteBlog.Api.Models.VO;
+using Microsoft.AspNetCore.Authorization;
 
 [ApiController]
 [Route("api/post")]
@@ -14,6 +15,7 @@ public class PostController : ControllerBase
         _logger = logger;
     }
     // 文章嘛, 无非增删改查
+    [Authorize]
     [HttpPost("insert")]
     public async Task<IActionResult> InsertPost(PostVo post)
     {
@@ -25,12 +27,14 @@ public class PostController : ControllerBase
             Title = post.Title,
         });
     }
+    [Authorize]
     [HttpPost("delete")]
     public async Task<IActionResult> DeletePost(long id)
     {
         var result = await _postServer.DeletePost(id);
         return Ok(result);
     }
+    [Authorize]
     [HttpPost("update")]
     public async Task<IActionResult> UpdatePost(PostVo post)
     {
@@ -40,6 +44,13 @@ public class PostController : ControllerBase
     [HttpPost("getbyid")]
     public async Task<IActionResult> GetPostById(long id)
     {
+        _logger.LogInformation("Getting post by id: {id}", id);
+        _logger.LogInformation("User: {user}", User.Identity?.Name);
+        var username = User.Identity?.Name;
+        if (string.IsNullOrEmpty(username))
+        {
+            return BadRequest("用户未登录");
+        }
         var result = await _postServer.GetPost(new PostVo { Id = id });
         return Ok(result);
     }
