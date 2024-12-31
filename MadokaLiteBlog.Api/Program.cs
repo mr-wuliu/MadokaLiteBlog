@@ -18,11 +18,16 @@ var connectionString = builder.Configuration.GetConnectionString("PostgresDb");
 builder.Services.AddScoped<NpgsqlConnection>(sp => new NpgsqlConnection(connectionString));
 
 builder.Services.AddTransient<DatabaseInitializer>();
-builder.Services.AddTransient<PostScanner>();
+builder.Services.AddScoped<PostScanner>();
+
 builder.Services.AddScoped<PostMapper>();
 builder.Services.AddScoped<PostServer>();
 builder.Services.AddScoped<UserMapper>();
 builder.Services.AddScoped<UserServer>();
+builder.Services.AddScoped<CategoryMapper>();
+builder.Services.AddScoped<CategoryServer>();
+builder.Services.AddScoped<TagMapper>();
+builder.Services.AddScoped<TagServer>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -75,7 +80,7 @@ using (var scope = app.Services.CreateScope())
     var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
     initializer.Initialize();
     var postScanner = scope.ServiceProvider.GetRequiredService<PostScanner>();
-    postScanner.ScanPosts(Path.Combine(Directory.GetCurrentDirectory(), "Scanner"));
+    _ = await postScanner.ScanPosts(Path.Combine(Directory.GetCurrentDirectory(), "Scanner"));
 }
 if (app.Environment.IsDevelopment())
 {

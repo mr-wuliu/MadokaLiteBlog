@@ -42,7 +42,6 @@ public abstract class BaseMapper<T> where T : class
             SELECT * FROM ""{typeof(T).Name}""
             ORDER BY ""{orderByColumn}"" {(isDesc ? "DESC" : "ASC")}
         ";
-        _logger.LogInformation("query: {query}", query);
         
         using var reader = await _dbContext.ExecuteReaderAsync(query);
         var parser = reader.GetRowParser<dynamic>();
@@ -113,7 +112,6 @@ public abstract class BaseMapper<T> where T : class
             ORDER BY ""{orderByColumn}"" {(isDesc ? "DESC" : "ASC")}
             LIMIT {pageSize} OFFSET {offset}
         ";
-        _logger.LogInformation("query: {query}", query);
         var result = new List<T>();
 
         using var reader = await _dbContext.ExecuteReaderAsync(query);
@@ -348,6 +346,28 @@ public abstract class BaseMapper<T> where T : class
             // TODO: 对于继承于BaseEntity的实体, 在保存/读取的时候, 可以考虑使用ID来获取实体
             else
             {
+                if (value?.GetType().IsArray == true)
+                {
+                   var propType = prop.PropertyType;
+                    // 检查是否是泛型集合类型
+                    if (propType.IsGenericType && 
+                        (propType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
+                         propType.GetGenericTypeDefinition() == typeof(List<>) ||
+                         propType.GetGenericTypeDefinition() == typeof(ICollection<>)))
+                    {
+                        if (value is not Array array || array.Length == 0)
+                        {
+                            var listType = typeof(List<>).MakeGenericType(
+                                propType.GetGenericArguments()[0]);
+                            prop.SetValue(entity, Activator.CreateInstance(listType));
+                        }
+                        else
+                        {
+                            prop.SetValue(entity, value);
+                        }
+                        continue;
+                    }
+                }
                 var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
                 var convertedValue = Convert.ChangeType(value, targetType);
                 prop.SetValue(entity, convertedValue);

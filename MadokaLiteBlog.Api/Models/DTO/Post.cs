@@ -6,7 +6,7 @@ public class Post : BaseDtoEntity
     [Key("Id")]
     public long Id { get; set; }
     public string? Title { get; set; }
-    
+    public string? Author { get; set; }
     /// <summary>
     /// 文章链接 
     /// </summary>

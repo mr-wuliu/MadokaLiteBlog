@@ -1,8 +1,8 @@
 using MadokaLiteBlog.Api.Mapper;
 using MadokaLiteBlog.Api.Models.VO;
 using MadokaLiteBlog.Api.Models.DTO;
-namespace MadokaLiteBlog.Api.Servic;
 
+namespace MadokaLiteBlog.Api.Service;
 public class CategoryServer
 {
     private readonly CategoryMapper _categoryMapper;
@@ -32,11 +32,30 @@ public class CategoryServer
             Description = category.Description,
         };
     }
+    public async Task<CategoryVo> GetCategoryByName(string name)
+    {
+        var categories = await _categoryMapper.GetByPropertyAsync(c => c.Name == name);
+        if (!categories.Any())
+        {
+            throw new Exception("分类不存在");
+        }
+        var category = categories.First();
+        return new CategoryVo
+        {
+            Id = category.Id,
+            Name = category.Name,
+            Description = category.Description,
+        };
+    }
     public async Task<bool> IsCategoryExist(string name)
     {
         var category = await _categoryMapper.GetByPropertyAsync(
             c => c.Name == name
             );
+        if (category.Count() > 1)
+        {
+            throw new Exception("分类重复");
+        }
         return category.Any();
     }
     public async Task<long> CreateCategory(CategoryVo categoryVo)
