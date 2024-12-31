@@ -1,4 +1,4 @@
-namespace MadokaLiteBlog.Api.Models;
+namespace MadokaLiteBlog.Api.Models.DTO;
 
 /// <summary>
 /// 实体基类
@@ -7,7 +7,7 @@ public abstract class BaseDtoEntity
 {
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
-    public int CreatedBy { get; set; }
-    public int? UpdatedBy { get; set; }
+    public long CreatedBy { get; set; }
+    public long? UpdatedBy { get; set; }
     public bool IsDeleted { get; set; } = false;
 }

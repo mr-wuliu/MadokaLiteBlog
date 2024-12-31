@@ -16,8 +16,51 @@ public class DataUtils
         }
         // 获取实际类型
         var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+        if (IsEnumerableType(type))
+        {
+            var elementType = GetElementType(type);
+            if (elementType != null)
+            {
+                var elementSqlType = GetBasicSqlType(elementType);
+                if (elementSqlType != "JSONB")
+                {
+                    return $"{elementSqlType}[]";
+                }
+            }
+        }
+        return GetBasicSqlType(type);
+    }
+    private static bool IsEnumerableType(Type type)
+    {
+        return type != typeof(string)
+            && (type.IsArray
+                || (type.IsGenericType
+                    && type.GetInterfaces()
+                        .Any(i => i.IsGenericType
+                            && i.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                )
+            );
+    }
 
-        if (!type.IsPrimitive && type != typeof(string) && type != typeof(DateTime) && type != typeof(decimal) && !type.IsEnum)
+    private static Type? GetElementType(Type type)
+    {
+        if (type.IsArray)
+        {
+            return type.GetElementType();
+        }
+        if (type.IsGenericType)
+        {
+            return type.GetGenericArguments().FirstOrDefault();
+        }
+        return null;
+    }
+    private static string GetBasicSqlType(Type type)
+    {
+        if (!type.IsPrimitive 
+            && type != typeof(string) 
+            && type != typeof(DateTime) 
+            && type != typeof(decimal) 
+            && !type.IsEnum)
         {
             return "JSONB";
         }
@@ -28,7 +71,6 @@ public class DataUtils
             Type t when t == typeof(string) => "TEXT",
             Type t when t == typeof(DateTime) => "TIMESTAMP",
             Type t when t == typeof(DateTimeOffset) => "TIMESTAMPTZ",
-            Type t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(List<>) => "JSONB",
             Type t when t == typeof(bool) => "BOOLEAN",
             Type t when t == typeof(int) || t == typeof(uint) => "INTEGER",
             Type t when t == typeof(decimal) => "NUMERIC",
@@ -40,7 +82,7 @@ public class DataUtils
             Type t when t == typeof(TimeOnly) => "TIME",
             Type t when t == typeof(sbyte) || t == typeof(short) || t == typeof(ushort) => "SMALLINT",
             Type t when t == typeof(char) => "CHAR",
-            _ => "TEXT"
+            _ => "JSONB"
         };
     }
 }

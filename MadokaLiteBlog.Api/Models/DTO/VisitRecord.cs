@@ -1,5 +1,4 @@
-
-namespace MadokaLiteBlog.Api.Models;
+namespace MadokaLiteBlog.Api.Models.DTO;
 [AutoBuild]
 [Table("VisitRecord")]
 public class VisitRecord : BaseDtoEntity

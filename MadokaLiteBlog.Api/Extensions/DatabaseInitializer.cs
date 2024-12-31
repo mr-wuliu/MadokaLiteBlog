@@ -128,6 +128,7 @@ public class DatabaseInitializer
                 {string.Join(",", columns)}
             )
         ";
+        _logger.LogInformation("Creating table {tableName} with query: {query}", tableName, createTableQuery);
         _dbContext.Execute(createTableQuery);
         _logger.LogInformation("Table {tableName} created successfully", tableName);
     }

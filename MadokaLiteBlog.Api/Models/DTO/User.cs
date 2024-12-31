@@ -1,4 +1,4 @@
-namespace MadokaLiteBlog.Api.Models;
+namespace MadokaLiteBlog.Api.Models.DTO;
 [AutoBuild]
 [Table("User")]
 public class User : BaseDtoEntity

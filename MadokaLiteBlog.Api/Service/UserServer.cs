@@ -1,5 +1,6 @@
+using System.Text.Json;
 using MadokaLiteBlog.Api.Mapper;
-using MadokaLiteBlog.Api.Models;
+using MadokaLiteBlog.Api.Models.DTO;
 using MadokaLiteBlog.Api.Models.VO;
 namespace MadokaLiteBlog.Api.Service;
 
@@ -35,17 +36,44 @@ public class UserServer
             Email = userVo.Email
         };
     }
-    public async Task<bool> ValidatePasswordAsync(string username, string password)
+    public async Task<UserVo> GetUserByIdAsync(long userId)
     {
-        var user = await _userMapper.GetByPropertyAsync(
-            u => u.Username == username,
-            u => u.Password == password
-        );
-        if (user.Count() is 0 or > 1)
-        {
-            return false;
+        if (userId <= 0) {
+            throw new Exception("不可控的userId");
         }
-        return true;
+        var user = await _userMapper.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new Exception("用户不存在");
+        }
+        return new UserVo
+        {
+            Id = user.Id,
+            Username = user.Username,
+            AvatarUrl = user.AvatarUrl,
+            Motto = user.Motto,
+            Email = user.Email
+        };
+    }
+    public async Task<int> UpdateUserAsync(UserVo userVo, long currentUserId)
+    {
+        if (userVo.Id == null || userVo.Id <= 0)
+        {
+            throw new Exception("用户ID不可控");
+        }
+        User user = new()
+        {
+            Id = (long) userVo.Id, 
+            Username = userVo.Username,
+            AvatarUrl = userVo.AvatarUrl,
+            Motto = userVo.Motto,
+            Email = userVo.Email,
+            UpdatedAt = DateTime.Now,
+            UpdatedBy = currentUserId
+        };
+        _logger.LogInformation("user: {user}", JsonSerializer.Serialize(user));
+        var result = await _userMapper.UpdateAsync(user);
+        return result;
     }
     public async Task<long> RegisterUserAsync(RegisterRequest registerRequest)
     {
@@ -64,6 +92,18 @@ public class UserServer
         };
         var userId = await _userMapper.InsertAsync(newUser);
         return userId;
+    }
+    public async Task<bool> ValidatePasswordAsync(string username, string password)
+    {
+        var user = await _userMapper.GetByPropertyAsync(
+            u => u.Username == username,
+            u => u.Password == password
+        );
+        if (user.Count() is 0 or > 1)
+        {
+            return false;
+        }
+        return true;
     }
 }
 

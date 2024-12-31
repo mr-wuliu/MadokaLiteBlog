@@ -6,6 +6,7 @@ using NLog.Web;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using MadokaLiteBlog.Api.Common;
 var builder = WebApplication.CreateBuilder(args);
 // 配置日志
 builder.Logging.ClearProviders();

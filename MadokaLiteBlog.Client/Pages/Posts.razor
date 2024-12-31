@@ -45,7 +45,7 @@ else
         try
         {
             isLoading = true;
-            var response = await Http.PostAsJsonAsync($"api/post/getpage?page={currentPage}&pageSize={pageSize}", new { });
+            var response = await Http.PostAsJsonAsync($"api/post/getsummary?page={currentPage}&pageSize={pageSize}", new { });
             if (response.IsSuccessStatusCode)
             {
                 var newPosts = await response.Content.ReadFromJsonAsync<List<Post>>();

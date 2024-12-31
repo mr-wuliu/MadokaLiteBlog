@@ -1,4 +1,4 @@
-namespace MadokaLiteBlog.Api.Models;
+namespace MadokaLiteBlog.Api.Models.DTO;
 
 /// <summary>
 /// 标签

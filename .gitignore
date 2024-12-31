@@ -3,3 +3,4 @@
 docker/*
 **/appsettings.json
 **/appsettings.Development.json
+MadokaLiteBlog.Api/Scanner/

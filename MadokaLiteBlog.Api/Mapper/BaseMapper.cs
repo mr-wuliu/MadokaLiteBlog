@@ -2,7 +2,6 @@ using Dapper;
 using Npgsql;
 using System.Text.Json;
 using System.Reflection;
-using MadokaLiteBlog.Api.Models;
 using MadokaLiteBlog.Api.Common;
 using System.Linq.Expressions;
 
@@ -10,16 +9,40 @@ namespace MadokaLiteBlog.Api.Mapper;
 public abstract class BaseMapper<T> where T : class
 {
     protected readonly NpgsqlConnection _dbContext;
-
-    protected BaseMapper(NpgsqlConnection dbContext)
+    protected readonly ILogger<BaseMapper<T>> _logger;
+    protected BaseMapper(NpgsqlConnection dbContext, ILogger<BaseMapper<T>> logger)
     {
         _dbContext = dbContext;
+        _logger = logger;
     }
 
-    public async Task<IEnumerable<T>> GetAllAsync()
+    public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, object>>? orderBy = null, bool isDesc = false)
     {
+        var orderByColumn = "";
+        if (orderBy != null)
+        {
+            var body = orderBy.Body;
+            if (body is UnaryExpression unaryExpression)
+            {
+                body = unaryExpression.Operand;
+            }
+            if (body is MemberExpression memberExpression)
+            {
+                orderByColumn = memberExpression.Member.Name;
+            }
+        } else {
+            // 默认使用Key排序
+            orderByColumn = typeof(T).GetProperties().FirstOrDefault(
+                p => p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0)
+                ?.Name;
+        }
+
         var result = new List<T>();
-        var query = $"SELECT * FROM \"{typeof(T).Name}\"";
+        var query = $@"
+            SELECT * FROM ""{typeof(T).Name}""
+            ORDER BY ""{orderByColumn}"" {(isDesc ? "DESC" : "ASC")}
+        ";
+        _logger.LogInformation("query: {query}", query);
         
         using var reader = await _dbContext.ExecuteReaderAsync(query);
         var parser = reader.GetRowParser<dynamic>();
@@ -37,7 +60,12 @@ public abstract class BaseMapper<T> where T : class
         }
         return result;
     }
-    public async Task<IEnumerable<T>> GetAllAsync(int page, int pageSize, Expression<Func<T, object>>? selector = null)
+    public async Task<IEnumerable<T>> GetAllAsync(
+        int page, int pageSize,
+        Expression<Func<T, object>>? selector = null,
+        Expression<Func<T, object>>? orderBy = null,
+        bool isDesc = false
+    )
     {
         if (page <= 0 || pageSize <= 0)
         {
@@ -46,9 +74,24 @@ public abstract class BaseMapper<T> where T : class
         // 利用泛型
         var entityType = typeof(T);
         var tableName = entityType.GetCustomAttribute<TableAttribute>()?.Name ?? entityType.Name;
-        var keyColumn = entityType.GetProperties().FirstOrDefault(
-            p => p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0)
-            ?.Name;
+        var orderByColumn = "";
+        if (orderBy != null)
+        {
+            var body = orderBy.Body;
+            if (body is UnaryExpression unaryExpression) // 处理类型转换的情况
+            {
+                body = unaryExpression.Operand;
+            }
+            if (body is MemberExpression memberExpression)
+            {
+                orderByColumn = memberExpression.Member.Name;
+            }
+        } else {
+            // 默认使用Key排序
+            orderByColumn = entityType.GetProperties().FirstOrDefault(
+                p => p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0)
+                ?.Name;
+        }
         var offset = (page - 1) * pageSize;
 
         var columns = "*";
@@ -67,9 +110,10 @@ public abstract class BaseMapper<T> where T : class
         }
         var query = $@"
             SELECT {columns} FROM ""{tableName}""
-            ORDER BY ""{keyColumn}"" ASC
+            ORDER BY ""{orderByColumn}"" {(isDesc ? "DESC" : "ASC")}
             LIMIT {pageSize} OFFSET {offset}
         ";
+        _logger.LogInformation("query: {query}", query);
         var result = new List<T>();
 
         using var reader = await _dbContext.ExecuteReaderAsync(query);
@@ -90,7 +134,15 @@ public abstract class BaseMapper<T> where T : class
     }
     public async Task<T?> GetByIdAsync(object id)
     {
-        return await _dbContext.QueryFirstOrDefaultAsync<T>($"SELECT * FROM \"{typeof(T).Name}\" WHERE Id = @Id", new { Id = id });
+        var entityType = typeof(T);
+        var keyProperty = entityType.GetProperties().FirstOrDefault(
+            p => p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0)
+            ?? throw new Exception("类中没有KeyAttribute属性");
+        var keyName = keyProperty.GetCustomAttribute<KeyAttribute>()?.Name 
+            ?? keyProperty.Name;
+        // cast id to KeyType
+        var keyvalue = Convert.ChangeType(id, keyProperty.PropertyType);
+        return await _dbContext.QueryFirstOrDefaultAsync<T>($"SELECT * FROM \"{typeof(T).Name}\" WHERE \"{keyName}\" = @Key", new { Key = keyvalue });
     }
     /// <summary>
     /// 根据属性值获取实体
@@ -118,7 +170,6 @@ public abstract class BaseMapper<T> where T : class
             }
         }
 
-        // 解析where条件
         var whereClause = TranslatePredicateToSql(predicate);
         var parameters = new DynamicParameters();
         
@@ -252,11 +303,11 @@ public abstract class BaseMapper<T> where T : class
             UPDATE ""{tableName}"" 
             SET {string.Join(", ", updatePairs)} 
             WHERE ""{keyName}"" = @Key";
-
         return await _dbContext.ExecuteAsync(sql, parameters);
     }
     public async Task<int> DeleteAsync(object id)
     {
+        // !! FIXME
         var tableAttribute = typeof(T).GetCustomAttributes(typeof(TableAttribute), false).FirstOrDefault(); 
         var tableName = tableAttribute != null ? (tableAttribute as TableAttribute)?.Name : typeof(T).Name;
         return await _dbContext.ExecuteAsync($"DELETE FROM \"{tableName}\" WHERE Id = @Id", new { Id = id });

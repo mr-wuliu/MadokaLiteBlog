@@ -1,4 +1,4 @@
-namespace MadokaLiteBlog.Api.Models;
+namespace MadokaLiteBlog.Api.Models.DTO;
 [AutoBuild]
 [Table("Post")]
 public class Post : BaseDtoEntity
@@ -27,5 +27,5 @@ public class Post : BaseDtoEntity
     /// <summary>
     /// 文章的分类
     /// </summary>
-    public long? CategoryId { get; set; }
+    public List<long>? CategoryId { get; set; }
 } 

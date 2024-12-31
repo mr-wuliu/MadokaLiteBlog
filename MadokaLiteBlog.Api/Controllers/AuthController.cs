@@ -1,8 +1,7 @@
 using MadokaLiteBlog.Api.Models.VO;
 using Microsoft.AspNetCore.Mvc;
 using MadokaLiteBlog.Api.Service;
-using MadokaLiteBlog.Api.Extensions;
-using Microsoft.AspNetCore.Authorization;
+using MadokaLiteBlog.Api.Common;
 
 [ApiController]
 [Route("api/auth")]
@@ -51,8 +50,8 @@ public class AuthController : ControllerBase
             return BadRequest("用户名或密码错误");
         }
         _logger.LogInformation("用户 {} 登录成功", loginRequest.Username);
-        
-        var token = _jwtHelper.GenerateJwtToken(loginRequest.Username);
+
+        var token = await _jwtHelper.GenerateJwtToken(loginRequest.Username);
         return Ok(new LoginResponse { 
             Token = token,
             Username = loginRequest.Username 
@@ -72,18 +71,7 @@ public class AuthController : ControllerBase
         }
         return Ok(userId);
     }
-    [Authorize]
-    [HttpPost("info")]
-    public async Task<IActionResult> Info()
-    {
-        var username = User.Identity?.Name;
-        if (string.IsNullOrEmpty(username))
-        {
-            return BadRequest("用户未登录");
-        }
-        var user = await _userService.GetUserByUsernameAsync(username);
-        return Ok(user);
-    }
+
     [HttpPost("get-encrypt-password")]
     public IActionResult GetEncryptPassword(string password)
     {

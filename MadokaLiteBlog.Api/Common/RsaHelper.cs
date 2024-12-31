@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
-namespace MadokaLiteBlog.Api.Extensions;
+namespace MadokaLiteBlog.Api.Common;
 
 public class RsaHelper
 {

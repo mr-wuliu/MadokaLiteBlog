@@ -11,10 +11,10 @@ public class PostVo
     public string? Summary { get; set; }
     public string? Content { get; set; }
     public string? Path { get; set; }
-    public long? CategoryId { get; set; }
+    public List<long>? CategoryId { get; set; }
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
-    public int? CreatedBy { get; set; }
-    public int? UpdatedBy { get; set; }
+    public long? CreatedBy { get; set; }
+    public long? UpdatedBy { get; set; }
     public bool? IsDeleted { get; set; } = false;
 } 

@@ -1,4 +1,4 @@
-namespace MadokaLiteBlog.Api.Models;
+namespace MadokaLiteBlog.Api.Models.DTO;
 [AutoBuild]
 [Table("Category")]
 public class Category : BaseDtoEntity
@@ -7,8 +7,4 @@ public class Category : BaseDtoEntity
     public long Id { get; set; }
     public string? Name { get; set; }
     public string? Description { get; set; }
-    /// <summary>
-    /// 反向引用
-    /// </summary>
-    public List<Post>? Posts { get; set; }
 }

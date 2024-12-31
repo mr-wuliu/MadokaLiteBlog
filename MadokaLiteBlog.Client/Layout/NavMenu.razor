@@ -22,6 +22,24 @@
                     </NavLink>
                 </li>
             </ul>
+            
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    @if (currentUser == null)
+                    {
+                        <NavLink class="nav-link" href="login">
+                            <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> 登录
+                        </NavLink>
+                    }
+                    else
+                    {
+                        <div class="d-flex align-items-center">
+                            <img src="@currentUser.AvatarUrl" class="rounded-circle me-2" style="width: 32px; height: 32px;" alt="用户头像" />
+                            <span class="text-light">@currentUser.UserName</span>
+                        </div>
+                    }
+                </li>
+            </ul>
         </div>
     </div>
 </div>
@@ -34,5 +52,34 @@
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    private UserInfo? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState != null)
+        {
+            var authState = await AuthState;
+            var user = authState.User;
+            
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                currentUser = new UserInfo
+                {
+                    UserName = user.Identity.Name ?? "",
+                    AvatarUrl = user.Claims.FirstOrDefault(c => c.Type == "avatar_url")?.Value ?? "/images/default-avatar.png"
+                };
+            }
+        }
+    }
+
+    private class UserInfo
+    {
+        public string UserName { get; set; } = "";
+        public string AvatarUrl { get; set; } = "";
     }
 }

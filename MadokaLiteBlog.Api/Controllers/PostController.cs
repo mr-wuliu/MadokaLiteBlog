@@ -68,7 +68,7 @@ public class PostController : ControllerBase
         var post = await _postServer.GetAllPosts(page, pageSize);
         return Ok(post);
     }
-    [HttpPost("getpage")]
+    [HttpPost("getsummary")]
     public async Task<IActionResult> GetPostsSummaryByPage(int page, int pageSize)
     {
         if (page <= 0 || pageSize <= 0)

@@ -1,10 +1,10 @@
-using MadokaLiteBlog.Api.Models;
+using MadokaLiteBlog.Api.Models.DTO;
 using Npgsql;
 namespace MadokaLiteBlog.Api.Mapper;
 
 public class CategoryMapper : BaseMapper<Category>
 {
-    public CategoryMapper(NpgsqlConnection dbContext) : base(dbContext) 
+    public CategoryMapper(NpgsqlConnection dbContext, ILogger<CategoryMapper> logger) : base(dbContext, logger) 
     {
         
     }

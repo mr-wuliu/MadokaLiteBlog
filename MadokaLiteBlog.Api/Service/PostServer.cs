@@ -1,6 +1,6 @@
 using MadokaLiteBlog.Api.Mapper;
+using MadokaLiteBlog.Api.Models.DTO;
 using MadokaLiteBlog.Api.Models.VO;
-using MadokaLiteBlog.Api.Models;
 namespace MadokaLiteBlog.Api.Service;
 
 public class PostServer
@@ -14,7 +14,7 @@ public class PostServer
     }
     public async Task<IEnumerable<PostVo>> GetAllPosts()
     {
-        var posts = await _postMapper.GetAllAsync();
+        var posts = await _postMapper.GetAllAsync(orderBy: p => p.Id, isDesc: true);
         return posts.Select(p => new PostVo
         {
             Id = p.Id,
@@ -31,7 +31,7 @@ public class PostServer
     }
     public async Task<IEnumerable<PostVo>> GetAllPosts(int page, int pageSize)
     {
-        var posts = await _postMapper.GetAllAsync( page, pageSize);
+        var posts = await _postMapper.GetAllAsync(page, pageSize, null, p => p.Id, true);
         _logger.LogInformation("Get all posts page: {page}, pageSize: {pageSize}, count: {count}", page, pageSize, posts.Count());
         return posts.Select(p => new PostVo
         {
@@ -55,7 +55,8 @@ public class PostServer
     public async Task<IEnumerable<PostVo>> GetPostsSummaryByPage(int page, int pageSize)
     {
         var posts = await _postMapper.GetAllAsync(page, pageSize,
-            p => new { p.Id, p.Title, p.Summary }
+            p => new { p.Id, p.Title, p.Summary },
+            p => p.Id, true
         );
         _logger.LogInformation("Get posts summary by page: {page}, pageSize: {pageSize}, count: {count}", page, pageSize, posts.Count());
         return posts.Select(p => new PostVo
