@@ -6,7 +6,7 @@ namespace MadokaLiteBlog.Api.Servic;
 public class CategoryServer
 {
     private readonly CategoryMapper _categoryMapper;
-    private readonly ILogger _logger;
+    private readonly ILogger<CategoryServer> _logger;
     public CategoryServer(CategoryMapper categoryMapper, ILogger<CategoryServer> logger)
     {
         _categoryMapper = categoryMapper;
@@ -31,6 +31,13 @@ public class CategoryServer
             Name = category.Name,
             Description = category.Description,
         };
+    }
+    public async Task<bool> IsCategoryExist(string name)
+    {
+        var category = await _categoryMapper.GetByPropertyAsync(
+            c => c.Name == name
+            );
+        return category.Any();
     }
     public async Task<long> CreateCategory(CategoryVo categoryVo)
     {

@@ -18,7 +18,7 @@ var connectionString = builder.Configuration.GetConnectionString("PostgresDb");
 builder.Services.AddScoped<NpgsqlConnection>(sp => new NpgsqlConnection(connectionString));
 
 builder.Services.AddTransient<DatabaseInitializer>();
-
+builder.Services.AddTransient<PostScanner>();
 builder.Services.AddScoped<PostMapper>();
 builder.Services.AddScoped<PostServer>();
 builder.Services.AddScoped<UserMapper>();
@@ -69,12 +69,14 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // 在应用启动时调用Initialize方法
+// 启动时扫描文章
 using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
     initializer.Initialize();
+    var postScanner = scope.ServiceProvider.GetRequiredService<PostScanner>();
+    postScanner.ScanPosts(Path.Combine(Directory.GetCurrentDirectory(), "Scanner"));
 }
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

@@ -49,11 +49,15 @@ public class DatabaseInitializer
     private Dictionary<string, string> GetExistingTableColumns(string tableName)
     {
         var query = $@"
-        SELECT column_name, data_type
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-        AND table_name = '{tableName}'
-    ";
+        SELECT a.attname AS column_name, pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type
+        FROM pg_catalog.pg_attribute a
+        JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+        JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+        WHERE n.nspname = 'public'
+            AND c.relname = '{tableName}'
+            AND a.attnum > 0
+            AND NOT a.attisdropped;
+        ";
 
         return _dbContext.Query(query)
             .ToDictionary(row => (string)row.column_name, row => (string)row.data_type);
