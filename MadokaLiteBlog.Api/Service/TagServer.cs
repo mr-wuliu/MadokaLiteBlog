@@ -60,7 +60,6 @@ public class TagServer
         {
             Name = tagVo.Name
         };
-        await _tagMapper.InsertAsync(tag);
-        return tag.Id;
+        return await _tagMapper.InsertAsync(tag);
     }
 }   

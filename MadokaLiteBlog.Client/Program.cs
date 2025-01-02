@@ -11,6 +11,7 @@ builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 builder.Services.AddScoped<AuthorizationMessageHandler>();
+builder.Services.AddScoped<PostListState>();
 builder.Services.AddScoped(sp => 
 {
     var config = new ConfigurationBuilder()

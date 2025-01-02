@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Reflection;
 using MadokaLiteBlog.Api.Common;
 using System.Linq.Expressions;
+using System.Collections;
 
 namespace MadokaLiteBlog.Api.Mapper;
 public abstract class BaseMapper<T> where T : class
@@ -219,7 +220,7 @@ public abstract class BaseMapper<T> where T : class
 
         return null;
     }
-    public async Task<int> InsertAsync(T entity)
+    public async Task<long> InsertAsync(T entity)
     {
         var properties = typeof(T).GetProperties()
             .Where(p => p.GetCustomAttributes(typeof(KeyAttribute), false).Length == 0);
@@ -252,7 +253,7 @@ public abstract class BaseMapper<T> where T : class
 
         var sql = $"INSERT INTO \"{tableName}\" ({string.Join(", ", columns)}) VALUES ({string.Join(", ", values)}) RETURNING \"Id\"";
 
-        return await _dbContext.ExecuteScalarAsync<int>(sql, parameters);
+        return await _dbContext.ExecuteScalarAsync<long>(sql, parameters);
     }
     /// <summary>
     /// 更新实体        
@@ -343,30 +344,23 @@ public abstract class BaseMapper<T> where T : class
                     prop.SetValue(entity, deserializedValue);
                 }
             }
-            // TODO: 对于继承于BaseEntity的实体, 在保存/读取的时候, 可以考虑使用ID来获取实体
             else
             {
-                if (value?.GetType().IsArray == true)
+                if (value?.GetType().IsArray == true && prop.PropertyType.IsGenericType)
                 {
-                   var propType = prop.PropertyType;
-                    // 检查是否是泛型集合类型
-                    if (propType.IsGenericType && 
-                        (propType.GetGenericTypeDefinition() == typeof(IEnumerable<>) ||
-                         propType.GetGenericTypeDefinition() == typeof(List<>) ||
-                         propType.GetGenericTypeDefinition() == typeof(ICollection<>)))
+                // 处理数组到List的转换
+                    var elementType = prop.PropertyType.GetGenericArguments()[0];
+                    var array = (Array)value;
+                    var list = Array.ConvertAll(array.Cast<object>().ToArray(), 
+                        item => Convert.ChangeType(item, elementType));
+                    var listType = typeof(List<>).MakeGenericType(elementType);
+                    var typedList = Activator.CreateInstance(listType);
+                    foreach (var item in list)
                     {
-                        if (value is not Array array || array.Length == 0)
-                        {
-                            var listType = typeof(List<>).MakeGenericType(
-                                propType.GetGenericArguments()[0]);
-                            prop.SetValue(entity, Activator.CreateInstance(listType));
-                        }
-                        else
-                        {
-                            prop.SetValue(entity, value);
-                        }
-                        continue;
+                        ((IList)typedList!).Add(item);
                     }
+                    prop.SetValue(entity, typedList);
+                    continue;
                 }
                 var targetType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
                 var convertedValue = Convert.ChangeType(value, targetType);

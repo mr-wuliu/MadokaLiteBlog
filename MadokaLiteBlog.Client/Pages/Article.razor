@@ -2,22 +2,28 @@
 @using Markdig
 @inject HttpClient Http
 @inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+@inject PostListState ListState
 
 <PageTitle>@post?.Title</PageTitle>
 
-@if (post == null)
-{
-    <p>Loading...</p>
-}
-else
-{
-    <div class="container mt-4">
+<div class="container mt-4">
+    <button class="btn btn-outline-secondary mb-3" @onclick="NavigateBack">
+        <i class="bi bi-arrow-left"></i> Back to Posts
+    </button>
+
+    @if (post == null)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
         <h1 class="mb-4">@post.Title</h1>
         <div class="article-content" id="article-content">
             @((MarkupString)renderedContent)
         </div>
-    </div>
-}
+    }
+</div>
 
 @code {
     [Parameter]
@@ -85,5 +91,10 @@ else
                 Console.WriteLine($"MathJax error: {ex.Message}");
             }
         }
+    }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/posts");
     }
 } 

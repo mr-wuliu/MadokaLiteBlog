@@ -1,0 +1,22 @@
+#article-content.article-content {
+    text-align: center !important;
+    width: 100%;
+    padding: 0 15px;
+    user-select: none;  /* 防止文本选择 */
+}
+
+/* 图片基本样式 */
+.article-content img {
+    max-width: 100%;
+    height: auto;
+    pointer-events: none;  /* 防止图片被拖拽 */
+}
+
+/* 允许文本选择 */
+.article-content p,
+.article-content h1,
+.article-content h2,
+.article-content h3,
+.article-content blockquote {
+    user-select: text;
+}

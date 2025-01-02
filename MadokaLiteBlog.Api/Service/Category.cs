@@ -65,7 +65,8 @@ public class CategoryServer
             Name = categoryVo.Name,
             Description = categoryVo.Description,
         };
-        await _categoryMapper.InsertAsync(category);
-        return category.Id;
+        var categoryId = await _categoryMapper.InsertAsync(category);
+        return categoryId;
     }
 }
+

@@ -1,91 +1,92 @@
 @page "/posts"
-@inject HttpClient Http
 @inject NavigationManager NavigationManager
+@inject PostListState ListState
+@inject HttpClient Http
+@implements IDisposable
 
-<PageTitle>Posts</PageTitle>
-
-<h1>Posts</h1>
-@if (posts == null || posts.Count == 0)
-{
-    <p>Loading...</p>
-}
-else
-{
-    @foreach (var post in posts)
+<div class="container mt-4">
+    @if (!ListState.HasData)
     {
-        <div class="card mb-3" style="cursor: pointer;" @onclick="() => NavigateToArticle(post.Id)">
-            <div class="card-body">
-                <h5 class="card-title">@post.Title</h5>
-                <p class="card-text">@post.Summary</p>
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
             </div>
         </div>
     }
-}
+    else
+    {
+        @foreach (var post in ListState.Posts)
+        {
+            <div class="card mb-3" @onclick="() => NavigateToArticle(post.Id)">
+                <div class="card-body">
+                    <h5 class="card-title">@post.Title</h5>
+                    <p class="summary-text">@post.Summary</p>
+                </div>
+            </div>
+        }
 
-<div class="pagination d-flex justify-content-center align-items-center mt-4">
-    <button class="btn btn-secondary me-2" @onclick="PreviousPage" disabled="@isFirstPage">上一页</button>
-    <span>第 @currentPage 页</span>
-    <button class="btn btn-secondary ms-2" @onclick="NextPage" disabled="@isLastPage">下一页</button>
+        <div class="d-flex justify-content-between align-items-center mt-4">
+            <button class="btn btn-outline-primary @(ListState.CurrentPage <= 1 ? "invisible" : "")" @onclick="PreviousPage">
+                <i class="bi bi-chevron-left"></i> Previous
+            </button>
+
+            <span>Page @ListState.CurrentPage</span>
+
+            <button class="btn btn-outline-primary @(ListState.Posts.Count < ListState.PageSize ? "invisible" : "")" @onclick="NextPage">
+                Next <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    }
 </div>
 
 @code {
-    private List<Post> posts = new List<Post>();
-    private int currentPage = 1;
-    private const int pageSize = 5;
-    private bool isLoading = false;
-    private bool isFirstPage => currentPage == 1;
-    private bool isLastPage => posts == null || posts.Count < pageSize;
-
     protected override async Task OnInitializedAsync()
     {
-        await LoadData();
+        ListState.OnStateChanged += StateHasChanged;
+        
+        if (!ListState.HasData)
+        {
+            await LoadPosts();
+        }
     }
-    private async Task LoadData()
+
+    private async Task LoadPosts()
     {
         try
         {
-            isLoading = true;
-            var response = await Http.PostAsJsonAsync($"api/post/getsummary?page={currentPage}&pageSize={pageSize}", new { });
+            var response = await Http.PostAsJsonAsync($"api/post/getsummary?page={ListState.CurrentPage}&pageSize={ListState.PageSize}", new { });
             if (response.IsSuccessStatusCode)
             {
-                var newPosts = await response.Content.ReadFromJsonAsync<List<Post>>();
-                if (newPosts != null)
+                var posts = await response.Content.ReadFromJsonAsync<List<Post>>();
+                if (posts != null)
                 {
-                    posts = newPosts;
+                    ListState.Posts = posts;
+                    ListState.HasData = true;
+                    ListState.NotifyStateChanged();
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-        finally
-        {
-            isLoading = false;
-        }
-    }
-
-    private async Task LoadMorePosts()
-    {
-        currentPage++;
-        await LoadData();
-    }
-
-        private async Task PreviousPage()
-    {
-        if (currentPage > 1)
-        {
-            currentPage--;
-            await LoadData();
+            // 处理错误
+            Console.WriteLine($"Error loading posts: {ex.Message}");
         }
     }
 
     private async Task NextPage()
     {
-        if (!isLastPage)
+        ListState.CurrentPage++;
+        await LoadPosts();
+        StateHasChanged();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (ListState.CurrentPage > 1)
         {
-            currentPage++;
-            await LoadData();
+            ListState.CurrentPage--;
+            await LoadPosts();
+            StateHasChanged();
         }
     }
 
@@ -93,4 +94,9 @@ else
     {
         NavigationManager.NavigateTo($"/article/{id}");
     }
-} 
+
+    public void Dispose()
+    {
+        ListState.OnStateChanged -= StateHasChanged;
+    }
+}

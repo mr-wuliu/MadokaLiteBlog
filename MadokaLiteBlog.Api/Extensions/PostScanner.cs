@@ -82,15 +82,32 @@ public class PostScanner
 
         // 处理分类
         var categoryIds = new List<long>();
-        if (metadata.TryGetValue("categories", out var categories) && categories is List<string> categoryList)
+        _logger.LogInformation("开始处理分类");
+        if (metadata.TryGetValue("categories", out var categories))
         {
-            _logger.LogInformation("开始处理分类: {Categories}", categoryList);
-            foreach (var category in categoryList)
+            var categoryList = new List<string>();
+            // 处理可能的不同类型情况
+            if (categories is List<object> objList)
             {
-                if (await _categoryServer.IsCategoryExist(category)) {
+                categoryList.AddRange(objList.Select(c => c.ToString() ?? ""));
+            }
+            else if (categories is string singleCategory)
+            {
+                categoryList.Add(singleCategory);
+            }
+
+            _logger.LogInformation("开始处理分类: {Categories}", categoryList);
+            foreach (var category in categoryList.Where(c => !string.IsNullOrEmpty(c)))
+            {
+                if (await _categoryServer.IsCategoryExist(category)) 
+                {
+                    _logger.LogInformation("分类 {Category} 已存在", category);
                     var categoryVo = await _categoryServer.GetCategoryByName(category);
                     categoryIds.Add(categoryVo.Id);
-                } else {
+                } 
+                else 
+                {
+                    _logger.LogInformation("分类 {Category} 不存在, 开始创建", category);
                     var categoryId = await _categoryServer.CreateCategory(new CategoryVo
                     {
                         Name = category,
@@ -100,10 +117,23 @@ public class PostScanner
                 }
             }
         }
+
+        // 处理标签
         var tags = new List<long>();
-        if (metadata.TryGetValue("tags", out var tagsList) && tagsList is List<string> tagList)
+        if (metadata.TryGetValue("tags", out var tagsList))
         {
-            foreach (var tag in tagList)
+            var tagList = new List<string>();
+            // 处理可能的不同类型情况
+            if (tagsList is List<object> objList)
+            {
+                tagList.AddRange(objList.Select(t => t.ToString() ?? ""));
+            }
+            else if (tagsList is string singleTag)
+            {
+                tagList.Add(singleTag);
+            }
+
+            foreach (var tag in tagList.Where(t => !string.IsNullOrEmpty(t)))
             {
                 if (await _tagsServer.IsTagExist(tag)) 
                 {
@@ -120,6 +150,7 @@ public class PostScanner
                 }
             }
         }
+
         // YAML结束, 开始处理正文
         var mainContent = content.Substring(match.Index + match.Length);
         var parts = mainContent.Split(new[] { "<!--more-->" }, 

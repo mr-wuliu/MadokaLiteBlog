@@ -1,16 +1,17 @@
 using System.Text.RegularExpressions;
 using MadokaLiteBlog.Api.Extensions;
-public class ImageService
+namespace MadokaLiteBlog.Api.Service;
+public partial class ImageService
 {
+    // 用于匹配 [s3://filename.jpg] 格式的图片标记    
+    [GeneratedRegex(@"\[s3://([^\]]+)\]", RegexOptions.Compiled)]
+    private static partial Regex S3UrlPattern();
     private readonly HttpClient _httpClient;
     private readonly string? _bucketName;
     private readonly string? _accessKey;
     private readonly string? _secretKey;
     private readonly string? _region;
     private readonly bool _isEnabled;
-    
-    // 用于匹配 [s3://filename.jpg] 格式的图片标记
-    private static readonly Regex S3UrlPattern = new(@"\[s3://([^\]]+)\]", RegexOptions.Compiled);
     
     // 允许的图片类型
     private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
@@ -36,6 +37,7 @@ public class ImageService
     /// </summary>
     public async Task<string> UploadImageAsync(IFormFile file)
     {
+        // return "test-image-token";
         if (!_isEnabled)
         {
             throw new InvalidOperationException("Image storage service is not enabled");
@@ -105,7 +107,7 @@ public class ImageService
             return content;
         }
 
-        return S3UrlPattern.Replace(content, match =>
+        return S3UrlPattern().Replace(content, match =>
         {
             var imageId = match.Groups[1].Value;
             return S3Extension.GeneratePresignedUrl(

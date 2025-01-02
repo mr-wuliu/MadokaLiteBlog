@@ -1,15 +1,21 @@
+using System.Text.RegularExpressions;
 using MadokaLiteBlog.Api.Mapper;
 using MadokaLiteBlog.Api.Models.DTO;
 using MadokaLiteBlog.Api.Models.VO;
 namespace MadokaLiteBlog.Api.Service;
 
-public class PostServer
+public partial class PostServer
 {
+    [GeneratedRegex(@"\[s3:\/\/([^\]]+)\]", RegexOptions.Compiled)]
+    private static partial Regex ImagePathRegex();
+
     private readonly PostMapper _postMapper;
+    private readonly ImageService _imageService;
     private readonly ILogger _logger;
-    public PostServer(PostMapper postMapper, ILogger<PostServer> logger)
+    public PostServer(PostMapper postMapper, ImageService imageService, ILogger<PostServer> logger)
     {
         _postMapper = postMapper;
+        _imageService = imageService;
         _logger = logger;
     }
     public async Task<IEnumerable<PostVo>> GetAllPosts()
@@ -80,6 +86,23 @@ public class PostServer
             return null;
         }
         _logger.LogInformation("Get post by id: {Id}", post.Id);
+        var markdownContent = p.Content;
+        if (!string.IsNullOrEmpty(markdownContent))
+        {
+            markdownContent = ImagePathRegex().Replace(markdownContent, match =>
+            {
+                try
+                {
+                    var imageId = match.Value;
+                    return _imageService.GetImageUrl(imageId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to generate image URL for {ImageId}", match.Value);
+                    return match.Value;
+                }
+            });
+        }
         return new PostVo
         {
             Id = p.Id ,
@@ -89,7 +112,7 @@ public class PostServer
             IsPublished = p.IsPublished,
             Tags = p.Tags,
             Summary = p.Summary,
-            Content = p.Content,
+            Content = markdownContent,
             Path = p.Path,
             CategoryId = p.CategoryId,
             CreatedAt = p.CreatedAt,
@@ -99,7 +122,7 @@ public class PostServer
             IsDeleted = p.IsDeleted,
         };
     }
-    public async Task<int> AddPost(PostVo post)
+    public async Task<long> AddPost(PostVo post)
     {
         _logger.LogDebug("Inserting post: {post}", post.Title);
         Post postEntity = new()

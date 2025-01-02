@@ -1,0 +1,44 @@
+.card {
+    height: 160px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    background-color: var(--bs-card-bg, #fff);
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.card-title {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+    color: var(--bs-heading-color, #212529);
+}
+
+.summary-text {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--bs-secondary-color, #6c757d);
+    margin: 0;
+    display: -webkit-box;
+    display: -moz-box;
+    display: box;
+    
+    -webkit-line-clamp: 3;
+    -moz-line-clamp: 3;
+    line-clamp: 3;
+    
+    -webkit-box-orient: vertical;
+    -moz-box-orient: vertical;
+    box-orient: vertical;
+    
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 4.5em; /* line-height * 3 lines */
+}

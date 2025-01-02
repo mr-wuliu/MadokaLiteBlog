@@ -45,12 +45,6 @@ public class PostController : ControllerBase
     public async Task<IActionResult> GetPostById(long id)
     {
         _logger.LogInformation("Getting post by id: {id}", id);
-        _logger.LogInformation("User: {user}", User.Identity?.Name);
-        var username = User.Identity?.Name;
-        if (string.IsNullOrEmpty(username))
-        {
-            return BadRequest("用户未登录");
-        }
         var result = await _postServer.GetPost(new PostVo { Id = id });
         return Ok(result);
     }
