@@ -1,5 +1,6 @@
 **/bin/
 **/obj/
+**/publish/
 docker/*
 **/appsettings.json
 **/appsettings.Development.json

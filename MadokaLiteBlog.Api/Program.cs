@@ -80,7 +80,12 @@ using (var scope = app.Services.CreateScope())
     var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
     initializer.Initialize();
     var postScanner = scope.ServiceProvider.GetRequiredService<PostScanner>();
-    _ = await postScanner.ScanPosts(Path.Combine(Directory.GetCurrentDirectory(), "Scanner"));
+    var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+    var scanFolderPath = configuration["ScanFolderPath"] ?? 
+                         Path.Combine(Directory.GetCurrentDirectory(), "Scanner");
+
+    _ = await postScanner.ScanPosts(scanFolderPath);
 }
 if (app.Environment.IsDevelopment())
 {
