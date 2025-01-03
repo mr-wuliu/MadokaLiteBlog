@@ -1,7 +1,8 @@
 **/bin/
 **/obj/
 **/publish/
-docker/*
+docker/pgadmin/
+docker/postgres/
 **/appsettings.json
 **/appsettings.Development.json
 MadokaLiteBlog.Api/Scanner/
