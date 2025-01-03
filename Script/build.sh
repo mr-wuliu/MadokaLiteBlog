@@ -8,6 +8,8 @@ export ASPNETCORE_ENVIRONMENT=Production
 API_DIR="/root/project/MadokaPublic/api"
 CLIENT_DIR="/root/project/MadokaPublic/client"
 
+rm -rf "$CLIENT_DIR"
+
 mkdir -p $API_DIR
 mkdir -p $CLIENT_DIR
 
@@ -36,6 +38,11 @@ if ! dotnet publish \
     /p:DebugSymbols=false; then
     echo "错误: Blazor Client 项目构建失败"
     exit 1
+fi
+
+if [ -d "$CLIENT_DIR/publish" ]; then
+    mv "$CLIENT_DIR/publish"/* "$CLIENT_DIR/"
+    rm -rf "$CLIENT_DIR/publish"
 fi
 
 echo "Build completed and deployed to $API_DIR and $CLIENT_DIR"
