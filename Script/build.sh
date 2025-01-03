@@ -26,7 +26,7 @@ if ! dotnet publish \
 fi
 
 echo "Building Blazor client..."
-cd "$SOLUTION_DIR/MadokaLiteBlogClient"
+cd "$SOLUTION_DIR/MadokaLiteBlog.Client"
 if ! dotnet publish \
     -c Release \
     -o "$CLIENT_DIR" \
