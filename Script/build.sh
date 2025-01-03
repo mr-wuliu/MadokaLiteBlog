@@ -26,13 +26,12 @@ if ! dotnet publish \
 fi
 
 echo "Building Blazor client..."
-cd "$SOLUTION_DIR/MadokaLiteBlog.Client"
+cd "$SOLUTION_DIR/MadokaLiteBlogClient"
 if ! dotnet publish \
     -c Release \
     -o "$CLIENT_DIR" \
     --self-contained true \
     -r linux-x64 \
-    /p:PublishReadyToRun=true \
     /p:DebugType=None \
     /p:DebugSymbols=false; then
     echo "错误: Blazor Client 项目构建失败"
