@@ -6,7 +6,7 @@ SOLUTION_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 export ASPNETCORE_ENVIRONMENT=Production
 
 API_DIR="/root/project/MadokaPublic/api"
-CLIENT_DIR="/root/project/MadokaPublic/client"
+CLIENT_DIR="/var/www/madoka/client"
 
 rm -rf "$CLIENT_DIR"
 
