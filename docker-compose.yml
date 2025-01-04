@@ -19,21 +19,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: madoka_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "127.0.0.1:5050:80"
-    volumes:
-      - ./docker/pgadmin:/var/lib/pgadmin
-    networks:
-      - madoka_net
-    depends_on:
-      - postgres
-
 networks:
   madoka_net:
     driver: bridge
