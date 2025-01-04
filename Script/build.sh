@@ -6,7 +6,9 @@ SOLUTION_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
 export ASPNETCORE_ENVIRONMENT=Production
 
 API_DIR="/root/project/MadokaPublic/api"
-CLIENT_DIR="/root/project/MadokaPublic/client"
+CLIENT_DIR="/var/www/madoka/client"
+
+rm -rf "$CLIENT_DIR"
 
 mkdir -p $API_DIR
 mkdir -p $CLIENT_DIR
@@ -32,11 +34,14 @@ if ! dotnet publish \
     -o "$CLIENT_DIR" \
     --self-contained true \
     -r linux-x64 \
-    /p:PublishReadyToRun=true \
     /p:DebugType=None \
     /p:DebugSymbols=false; then
     echo "错误: Blazor Client 项目构建失败"
     exit 1
+fi
+
+if [ -d "$CLIENT_DIR/publish" ]; then
+    rm -rf "$CLIENT_DIR/publish"
 fi
 
 echo "Build completed and deployed to $API_DIR and $CLIENT_DIR"
