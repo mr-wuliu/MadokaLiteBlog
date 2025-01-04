@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: madoka
       POSTGRES_PASSWORD: madoka_postgres
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - ./docker/postgres:/var/lib/postgresql/data
     networks:
@@ -26,7 +26,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
     volumes:
       - ./docker/pgadmin:/var/lib/pgadmin
     networks:
