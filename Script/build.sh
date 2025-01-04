@@ -41,7 +41,6 @@ if ! dotnet publish \
 fi
 
 if [ -d "$CLIENT_DIR/publish" ]; then
-    mv "$CLIENT_DIR/publish"/* "$CLIENT_DIR/"
     rm -rf "$CLIENT_DIR/publish"
 fi
 
