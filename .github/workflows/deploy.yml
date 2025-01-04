@@ -20,6 +20,6 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
             cd /root/project/MadokaLiteBlog
             git pull origin master
-            ./Scripts/build.sh
-            ./Scripts/deploy.sh
+            ./Script/build.sh
+            ./Script/deploy.sh
           EOF
