@@ -43,4 +43,17 @@ public class UserController : ControllerBase
         var result = await _userService.UpdateUserAsync(userVo, currentUserId);
         return Ok(result);
     }
+    [Authorize]
+    [HttpPost("update-password")]
+    public async Task<IActionResult> UpdatePassword([FromBody] string password)
+    {
+        var currentUserId = User.GetUserId();
+        if (currentUserId <= 0)
+        {
+            return BadRequest("用户未登录");
+        }
+        var result = await _userService.UpdateUserPasswordAsync(currentUserId, password);
+        return Ok(result);
+    }
 }   
+

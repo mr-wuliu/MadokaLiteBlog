@@ -75,6 +75,14 @@ public class UserServer
         var result = await _userMapper.UpdateAsync(user);
         return result;
     }
+    public async Task<int> UpdateUserPasswordAsync(long userId, string password)
+    {
+        var user = await _userMapper.GetByIdAsync(userId) ?? throw new Exception("用户不存在");
+        user.Password = password;
+        user.UpdatedAt = DateTime.Now;
+        user.UpdatedBy = userId;
+        return await _userMapper.UpdateAsync(user);
+    }
     public async Task<long> RegisterUserAsync(RegisterRequest registerRequest)
     {
         var user = await _userMapper.GetByPropertyAsync(u => u.Username == registerRequest.Username);

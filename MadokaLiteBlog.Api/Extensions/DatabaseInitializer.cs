@@ -2,6 +2,7 @@ using System.Reflection;
 using Dapper;
 using Npgsql;
 using MadokaLiteBlog.Api.Common;
+using MadokaLiteBlog.Api.Models.DTO;
 
 namespace MadokaLiteBlog.Api.Extensions;
 
@@ -25,6 +26,8 @@ public class DatabaseInitializer
         {
             CreateTable(type);
         }
+        InitializeData();
+        _logger.LogInformation("DatabaseInitializer initialized successfully");
     }
     private static bool IsCompatibleType(string existingType, string modelType)
     {
@@ -83,6 +86,27 @@ public class DatabaseInitializer
             {
                 throw new InvalidOperationException($"Missing column '{columnName}' in existing table '{tableName}'.");
             }
+        }
+    }
+    private void InitializeData()
+    {
+        // 检查user表是否存在数据
+        var user = _dbContext.QueryFirstOrDefault<User>("SELECT * FROM \"User\"");
+        if (user == null)
+        {
+            _logger.LogInformation("Initializing data...");
+            var adminUser = new User
+            {
+                Username = "admin",
+                Password = "admin",
+                Email = "admin@admin.com",
+                AvatarUrl = "https://www.gravatar.com/avatar/205e460b479e2e5b48aec07710c08d50",
+                Motto = "初始管理员"
+            };
+            var sql = $@"INSERT INTO ""User"" 
+                (""Username"", ""Password"", ""Email"", ""AvatarUrl"", ""Motto"", ""CreatedAt"", ""CreatedBy"", ""IsDeleted"") 
+                VALUES ('{adminUser.Username}', '{adminUser.Password}', '{adminUser.Email}', '{adminUser.AvatarUrl}', '{adminUser.Motto}', now(), 1, false)";
+            _dbContext.Execute(sql);
         }
     }
     private bool TableExists(string tableNaem)
