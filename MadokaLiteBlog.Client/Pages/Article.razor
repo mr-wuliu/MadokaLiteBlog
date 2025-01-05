@@ -4,13 +4,22 @@
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
 @inject PostListState ListState
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>@post?.Title</PageTitle>
 
 <div class="container mt-4">
-    <button class="btn btn-outline-secondary mb-3" @onclick="NavigateBack">
-        <i class="bi bi-arrow-left"></i> Back to Posts
-    </button>
+    <div class="d-flex align-items-center mb-3">
+        <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+            <i class="bi bi-arrow-left"></i> Back to Posts
+        </button>
+        @if (isAuthenticated)
+        {
+            <button class="btn btn-outline-primary ms-2" @onclick="NavigateToEdit">
+                <i class="bi bi-pencil"></i> 编辑
+            </button>
+        }
+    </div>
 
     @if (post == null)
     {
@@ -18,18 +27,36 @@
     }
     else
     {
-        <h1 class="mb-4">@post.Title</h1>
+        <h1 class="mb-3">@post.Title</h1>
+        <div class="text-muted mb-4">
+            <small>
+                创建于 @(post.CreatedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))
+                @if (post.UpdatedAt != post.CreatedAt && post.UpdatedAt != null)
+                {
+                    <span class="ms-3">
+                        更新于 @(post.UpdatedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))
+                    </span>
+                }
+            </small>
+        </div>
         <div class="article-content" id="article-content">
             @((MarkupString)renderedContent)
         </div>
     }
 </div>
 
+<style>
+    .text-muted small {
+        font-size: 0.9rem;
+    }
+</style>
+
 @code {
     [Parameter]
     public long Id { get; set; }
     private Post? post;
     private string renderedContent = string.Empty;
+    private bool isAuthenticated;
 
     private string RemoveYamlFrontMatter(string content)
     {
@@ -59,6 +86,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+        
         try
         {
             Console.WriteLine($"Id: {Id}");
@@ -96,5 +126,10 @@
     private void NavigateBack()
     {
         NavigationManager.NavigateTo("/posts");
+    }
+
+    private void NavigateToEdit()
+    {
+        NavigationManager.NavigateTo($"/editor/{Id}");
     }
 } 

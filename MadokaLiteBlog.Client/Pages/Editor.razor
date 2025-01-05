@@ -1,49 +1,80 @@
 @page "/editor"
+@page "/editor/{Id:long}"
 @using System.Net.Http.Json
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ILogger<Editor> Logger
 
-<PageTitle>编辑文章</PageTitle>
+<PageTitle>@(Id == null ? "创建文章" : "编辑文章")</PageTitle>
 
-<div class="container mt-4">
-    <EditForm Model="@post" OnValidSubmit="HandleValidSubmit">
-        <DataAnnotationsValidator />
-        
-        <div class="form-group mb-3">
-            <label for="title">标题</label>
-            <InputText id="title" @bind-Value="post.Title" class="form-control" />
-            <ValidationMessage For="@(() => post.Title)" />
-        </div>
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">@(Id == null ? "创建新文章" : "编辑文章")</h2>
+                    
+                    <EditForm Model="@post" OnValidSubmit="HandleValidSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="form-group mb-4">
+                            <label for="title" class="form-label fw-bold">标题</label>
+                            <InputText id="title" @bind-Value="post.Title" class="form-control form-control-lg" placeholder="请输入文章标题..." />
+                            <ValidationMessage For="@(() => post.Title)" class="text-danger" />
+                        </div>
 
-        <div class="form-group mb-3">
-            <label for="summary">摘要</label>
-            <InputTextArea id="summary" @bind-Value="post.Summary" class="form-control" rows="3" />
-            <ValidationMessage For="@(() => post.Summary)" />
-        </div>
+                        <div class="form-group mb-4">
+                            <label for="summary" class="form-label fw-bold">摘要</label>
+                            <InputTextArea id="summary" @bind-Value="post.Summary" class="form-control" rows="3" 
+                                         placeholder="请输入文章摘要..." />
+                            <ValidationMessage For="@(() => post.Summary)" class="text-danger" />
+                        </div>
 
-        <div class="form-group mb-3">
-            <label for="content">正文 (Markdown)</label>
-            <div class="editor-container">
-                <InputTextArea id="content" @bind-Value="post.Content" class="form-control" rows="20" />
+                        <div class="form-group mb-4">
+                            <label for="content" class="form-label fw-bold">正文内容</label>
+                            <div class="editor-container">
+                                <InputTextArea id="content" @bind-Value="post.Content" 
+                                             class="form-control font-monospace" rows="20" 
+                                             placeholder="使用 Markdown 编写文章内容..." />
+                            </div>
+                            <ValidationMessage For="@(() => post.Content)" class="text-danger" />
+                            <small class="text-muted">支持 Markdown 格式</small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-outline-secondary me-2">保存草稿</button>
+                            <button type="submit" class="btn btn-primary px-4">
+                                @(Id == null ? "发布文章" : "更新文章")
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
             </div>
-            <ValidationMessage For="@(() => post.Content)" />
         </div>
+    </div>
+</div>
 
-        <div class="preview-container mb-3">
-            <h4>预览</h4>
-            <div class="preview-content">
-                @((MarkupString)renderedContent)
-            </div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div class="toast @(showToast ? "show" : "")" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto">提示</strong>
+            <button type="button" class="btn-close" @onclick="() => showToast = false"></button>
         </div>
-
-        <button type="submit" class="btn btn-primary">发布文章</button>
-    </EditForm>
+        <div class="toast-body">
+            @toastMessage
+        </div>
+    </div>
 </div>
 
 @code {
+    [Parameter]
+    public long? Id { get; set; }
     private Post post = new();
     private string renderedContent = string.Empty;
+    private bool showToast = false;
+    private string toastMessage = "";
+    private Timer? toastTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -51,6 +82,28 @@
         if (!authState.User.Identity?.IsAuthenticated ?? true)
         {
             NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        if (Id.HasValue)
+        {
+            await LoadPost();
+        }
+    }
+
+    private async Task LoadPost()
+    {
+        try
+        {
+            var response = await Http.PostAsync($"api/post/getbyid?id={Id}", new StringContent(""));
+            if (response.IsSuccessStatusCode)
+            {
+                post = await response.Content.ReadFromJsonAsync<Post>() ?? new Post();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading post: {ex.Message}");
         }
     }
 
@@ -58,20 +111,69 @@
     {
         try
         {
-            var response = await Http.PostAsJsonAsync("api/post/insert", post);
+            HttpResponseMessage response;
+            if (Id.HasValue)
+            {
+                post.Id = Id.Value;
+                response = await Http.PostAsJsonAsync("api/post/update", post);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<int>();
+                    if (result == 1)
+                    {
+                        ShowToast("文章更新成功！");
+                        await Task.Delay(1500);
+                        NavigationManager.NavigateTo($"/article/{Id}");
+                        return;
+                    }
+                    else
+                    {
+                        ShowToast("更新失败");
+                        return;
+                    }
+                }
+            }
+            
+            response = await Http.PostAsJsonAsync("api/post/insert", post);
+            
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<PostResponse>();
                 if (result?.Id != null)
                 {
+                    ShowToast("文章发布成功！");
+                    await Task.Delay(1500);
                     NavigationManager.NavigateTo($"/article/{result.Id}");
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            Logger.LogError(ex, "Error saving post");
+            ShowToast("保存失败：" + ex.Message);
         }
+    }
+
+    private void ShowToast(string message)
+    {
+        toastMessage = message;
+        showToast = true;
+        
+        toastTimer?.Dispose();
+        toastTimer = new Timer(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                showToast = false;
+                StateHasChanged();
+            });
+        }, null, 3000, Timeout.Infinite);
+    }
+
+    public void Dispose()
+    {
+        toastTimer?.Dispose();
     }
 
     private class PostResponse
