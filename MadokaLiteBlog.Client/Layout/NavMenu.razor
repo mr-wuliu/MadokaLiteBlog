@@ -44,6 +44,10 @@
     </div>
 </div>
 
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IUserService UserService
+
 @code {
     private bool collapseNavMenu = true;
 
@@ -61,20 +65,48 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (AuthState != null)
+        await GetUserInfo();
+        // 订阅认证状态变化
+        AuthStateProvider.AuthenticationStateChanged += AuthenticationStateChangedHandler;
+    }
+
+    private async Task GetUserInfo()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        if (user.Identity?.IsAuthenticated == true)
         {
-            var authState = await AuthState;
-            var user = authState.User;
-            
-            if (user.Identity?.IsAuthenticated == true)
+            // 使用 UserService 获取用户信息
+            var userInfo = await UserService.GetCurrentUserInfo();
+            if (userInfo != null)
             {
                 currentUser = new UserInfo
                 {
-                    UserName = user.Identity.Name ?? "",
-                    AvatarUrl = user.Claims.FirstOrDefault(c => c.Type == "avatar_url")?.Value ?? "/images/default-avatar.png"
+                    UserName = userInfo.Username ?? "",
+                    AvatarUrl = userInfo.AvatarUrl ?? "/images/default-avatar.png"
                 };
             }
         }
+        else
+        {
+            currentUser = null;
+        }
+        
+        // 确保UI更新
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void AuthenticationStateChangedHandler(Task<AuthenticationState> task)
+    {
+        await GetUserInfo();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        // 取消订阅以防止内存泄漏
+        AuthStateProvider.AuthenticationStateChanged -= AuthenticationStateChangedHandler;
     }
 
     private class UserInfo

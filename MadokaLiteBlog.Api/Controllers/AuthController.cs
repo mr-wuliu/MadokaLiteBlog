@@ -2,6 +2,7 @@ using MadokaLiteBlog.Api.Models.VO;
 using Microsoft.AspNetCore.Mvc;
 using MadokaLiteBlog.Api.Service;
 using MadokaLiteBlog.Api.Common;
+using Microsoft.AspNetCore.Authorization;
 
 [ApiController]
 [Route("api/auth")]
@@ -57,6 +58,7 @@ public class AuthController : ControllerBase
             Username = loginRequest.Username 
         });
     }
+    [Authorize]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest registerRequest)
     {

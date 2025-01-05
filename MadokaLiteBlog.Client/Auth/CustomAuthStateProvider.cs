@@ -51,4 +51,18 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         var anonymousUser = new ClaimsPrincipal(new ClaimsIdentity());
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymousUser)));
     }
+
+    public void UpdateUserInfo(User userInfo)
+    {
+        var identity = new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.Name, userInfo.Username ?? ""),
+            new Claim("avatar_url", userInfo.AvatarUrl ?? ""),
+            new Claim("user_id", userInfo.Id?.ToString() ?? ""),
+            // 可以添加其他需要的用户信息
+        }, "jwt");
+
+        var user = new ClaimsPrincipal(identity);
+        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+    }
 } 

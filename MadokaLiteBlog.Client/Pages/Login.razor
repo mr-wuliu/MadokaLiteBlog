@@ -68,6 +68,16 @@
                 
                 await ((CustomAuthStateProvider)AuthStateProvider).MarkUserAsAuthenticated(result?.Username ?? "");
                 
+                var userInfoResponse = await Http.PostAsync("api/user/info", null);
+                if (userInfoResponse.IsSuccessStatusCode)
+                {
+                    var userInfo = await userInfoResponse.Content.ReadFromJsonAsync<User>();
+                    if (userInfo != null)
+                    {
+                        ((CustomAuthStateProvider)AuthStateProvider).UpdateUserInfo(userInfo);
+                    }
+                }
+                
                 NavigationManager.NavigateTo("/");
             }
             else
