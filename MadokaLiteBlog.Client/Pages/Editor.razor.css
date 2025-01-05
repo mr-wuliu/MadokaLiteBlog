@@ -1,21 +1,33 @@
 .editor-container {
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-bottom: 1rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    background-color: #fff;
+}
+.editor-container .form-control {
+    border: none;
+    min-height: 400px;
+    font-size: 0.95rem;
+    line-height: 1.6;
 }
 
-.preview-container {
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 1rem;
-    background-color: #f8f9fa;
-}
-
-.preview-content {
-    min-height: 200px;
+.editor-container .form-control:focus {
+    box-shadow: none;
 }
 
 ::deep textarea {
     font-family: monospace;
     resize: vertical;
-} 
+}
+
+.toast-container {
+    z-index: 1050;
+}
+
+.toast {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.toast.show {
+    opacity: 1;
+}
