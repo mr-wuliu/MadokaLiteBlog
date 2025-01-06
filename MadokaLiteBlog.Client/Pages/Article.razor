@@ -101,6 +101,11 @@
                     renderedContent = ProcessContent(post.Content);
                 }
             }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                await ((CustomAuthStateProvider)AuthStateProvider).HandleAuthenticationError();
+                isAuthenticated = false;
+            }
         }
         catch (Exception ex)
         {

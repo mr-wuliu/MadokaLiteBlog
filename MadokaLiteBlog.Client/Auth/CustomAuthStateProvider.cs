@@ -65,4 +65,8 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         var user = new ClaimsPrincipal(identity);
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
     }
+    public async Task HandleAuthenticationError()
+    {
+        await MarkUserAsLoggedOut();
+    }
 } 
