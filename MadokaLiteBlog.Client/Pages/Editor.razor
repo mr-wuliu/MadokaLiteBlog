@@ -1,7 +1,9 @@
 @page "/editor"
 @page "/editor/{Id:long}"
 @using System.Net.Http.Json
+@using System.Text.Json
 @inject HttpClient Http
+@inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
 @inject ILogger<Editor> Logger
@@ -36,7 +38,11 @@
                             <div class="editor-container">
                                 <InputTextArea id="content" @bind-Value="post.Content" 
                                              class="form-control font-monospace" rows="20" 
-                                             placeholder="使用 Markdown 编写文章内容..." />
+                                             placeholder="使用 Markdown 编写文章内容..."
+                                             @onfocus="OnFocus"
+                                             @onkeyup="OnKeyUp"
+                                             @onclick="OnClick"
+                                            />
                             </div>
                             <ValidationMessage For="@(() => post.Content)" class="text-danger" />
                             <small class="text-muted">支持 Markdown 格式</small>
@@ -66,6 +72,7 @@
         </div>
     </div>
 </div>
+<p>光标位置: @CaretPosition</p>
 
 @code {
     [Parameter]
@@ -75,6 +82,8 @@
     private bool showToast = false;
     private string toastMessage = "";
     private Timer? toastTimer;
+    private int CaretPosition;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,13 +93,35 @@
             NavigationManager.NavigateTo("/login");
             return;
         }
+        await JsRuntime.InvokeVoidAsync("handlePasteEvent", "content");
 
         if (Id.HasValue)
         {
             await LoadPost();
         }
     }
-
+    private async Task OnKeyUp()
+    {
+        CaretPosition = await GetCaretPosition();
+    }
+    private async Task OnFocus()
+    {
+        CaretPosition = await GetCaretPosition();
+    }
+    private async Task OnClick()
+    {
+        CaretPosition = await GetCaretPosition();
+    }
+    [JSInvokable]
+    public static Task<string> HandleImagePaste(string base64Image)
+    {
+        return Task.FromResult($"[s3://madokaliteblog/image/{base64Image}]");
+    }
+    private async Task<int> GetCaretPosition()
+    {
+        var caretPos = await JsRuntime.InvokeAsync<int>("getCaretPosition","content");
+        return caretPos;
+    }
     private async Task LoadPost()
     {
         try
@@ -181,4 +212,5 @@
         public long Id { get; set; }
         public string? Title { get; set; }
     }
+
 }
