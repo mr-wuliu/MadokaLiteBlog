@@ -13,5 +13,12 @@
     <PackageReference Include="Markdig" Version="0.39.1" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8.0.11" />
   </ItemGroup>
-
+  <Target Name="BuildJavaScript" BeforeTargets="Build">
+      <Message Text="Building JavaScript bundle..." Importance="high" />
+      <Exec Command="node build.js" WorkingDirectory="$(ProjectDir)" />
+  </Target>
+  <Target Name="WatchJavaScript" BeforeTargets="Run">
+      <Message Text="Starting JavaScript watch..." Importance="high" />
+      <Exec Command="node build.js" WorkingDirectory="$(ProjectDir)" />
+  </Target>
 </Project>

@@ -1,5 +1,7 @@
 @page "/article/{Id:long}"
 @using Markdig
+@using System.Text.RegularExpressions
+@using System.Text
 @inject HttpClient Http
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
@@ -58,25 +60,101 @@
     private string renderedContent = string.Empty;
     private bool isAuthenticated;
 
-    private string RemoveYamlFrontMatter(string content)
-    {
-        if (string.IsNullOrEmpty(content)) return content;
-
-        return content;
-    }
-
     private string ProcessContent(string content)
     {
         if (string.IsNullOrEmpty(content)) return content;
 
         try
         {
-            content = RemoveYamlFrontMatter(content);
+            // 处理数学公式
+            // 只在$$ 或 $ 之间插入 的 \\ 都替换为 \
+            @* content = content.Replace("\\\\", "\\"); *@
+            @* content = Regex.Replace(content, @"(\$\$.*?\\\\.*?\$\$)|(\$.*?\\\\.*?\$)", match =>
+            {
+                string value = match.Value;
+                if (value.StartsWith("$$") && value.EndsWith("$$"))
+                {
+                    // 替换公式块中的 \\ 为 \
+                    return value.Replace("\\\\", "\\");
+                }
+                if (value.StartsWith("$") && value.EndsWith("$"))
+                {
+                    // 替换行内公式中的 \\ 为 \
+                    return value.Replace("\\\\", "\\");
+                }
+                return value;
+            }, RegexOptions.Singleline); *@
+            var builder = new StringBuilder(content.Length);
+            int length = content.Length;
+            int i = 0;
+
+            while (i < length)
+            {
+                if (content[i] == '$')
+                {
+                    int start = i;
+                    bool isBlockFormula = (i + 1 < length && content[i + 1] == '$');
+                    int end = -1;
+
+                    if (isBlockFormula)
+                    {
+                        i += 2;
+                        while (i < length - 1)
+                        {
+                            if (content[i] == '$' && content[i + 1] == '$')
+                            {
+                                end = i + 1; 
+                                break;
+                            }
+                            i++;
+                        }
+                    }
+                    else
+                    {
+                        i += 1;
+                        while (i < length)
+                        {
+                            if (content[i] == '$')
+                            {
+                                end = i;
+                                break;
+                            }
+                            i++;
+                        }
+                    }
+                    if (end != -1)
+                    {
+                        int formulaLength = end - start + 1;
+                        builder.Append(content, start, formulaLength);
+
+                        for (int j = builder.Length - formulaLength; j < builder.Length; j++)
+                        {
+                            if (builder[j] == '\\' && j + 1 < builder.Length && builder[j + 1] == '\\')
+                            {
+                                builder.Remove(j, 1);
+                            }
+                        }
+                        i = end + 1;
+                        continue;
+                    }
+                    else
+                    {
+                        builder.Append(content.Substring(start));
+                        break;
+                    }
+                }
+                else
+                {
+                    builder.Append(content[i]);
+                    i++;
+                }
+            }
+
             var pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
                 .UseMathematics()
                 .Build();
-            return Markdown.ToHtml(content, pipeline);
+            return Markdown.ToHtml(builder.ToString(), pipeline);
         }
         catch (Exception ex)
         {
@@ -135,6 +213,6 @@
 
     private void NavigateToEdit()
     {
-        NavigationManager.NavigateTo($"/editor/{Id}");
+        NavigationManager.NavigateTo($"/prosemirror/{Id}");
     }
 } 

@@ -6,3 +6,6 @@ docker/postgres/
 **/appsettings.json
 **/appsettings.Development.json
 MadokaLiteBlog.Api/Scanner/
+**/node_modules
+MadokaLiteBlog.Client/wwwroot/js/prosemirror.bundle.js
+MadokaLiteBlog.Client/package-lock.json
