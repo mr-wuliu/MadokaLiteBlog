@@ -62,13 +62,8 @@
         {
             NavigationManager.NavigateTo("/login");
         }
-
-        if (Id.HasValue)
-        {   
-            await LoadPost();
-        }
     }
-
+    
     private async Task LoadPost()
     {
         try
@@ -77,8 +72,6 @@
             if (response.IsSuccessStatusCode)
             {
                 post = await response.Content.ReadFromJsonAsync<Post>() ?? new Post();
-                // 获取到Markdown, 转为WYSIWYG
-                Console.WriteLine($"Markdown Content: {post.Content}");
                 await JS.InvokeVoidAsync("setEditorContent", post.Content);
             } 
         }
@@ -87,18 +80,14 @@
             Console.WriteLine($"Error loading post: {ex.Message}");
         }
     }
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
+    protected override async Task OnAfterRenderAsync(bool firstRender) {
         if (firstRender)
         {
-            await Task.Delay(50);
             _editorInstance = await JS.InvokeAsync<IJSObjectReference>("initializeEditor", "editor-container");
-            Console.WriteLine($"Editor Content: {post.Content}");
-            if (!string.IsNullOrEmpty(post.Content))
-            {
-                await JS.InvokeVoidAsync("setEditorContent", post.Content);
+            if (Id.HasValue)
+            {   
+                await LoadPost();
             }
-            Console.WriteLine("Editor initialized");
         }
     }
     private async Task GetEditorContent()
