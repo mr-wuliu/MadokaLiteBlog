@@ -13,6 +13,18 @@ rm -rf "$CLIENT_DIR"
 mkdir -p $API_DIR
 mkdir -p $CLIENT_DIR
 
+echo "Installing npm dependencies and building JavaScript..."
+cd "$SOLUTION_DIR/MadokaLiteBlog.Client"
+if ! npm install; then
+    echo "错误: npm 依赖安装失败"
+    exit 1
+fi
+
+if ! node build.js; then
+    echo "错误: JavaScript 构建失败"
+    exit 1
+fi
+
 echo "Building API project..."
 cd "$SOLUTION_DIR/MadokaLiteBlog.Api"
 if ! dotnet publish \
@@ -43,5 +55,8 @@ fi
 if [ -d "$CLIENT_DIR/publish" ]; then
     rm -rf "$CLIENT_DIR/publish"
 fi
+
+echo "Cleaning up node_modules..."
+rm -rf "$SOLUTION_DIR/MadokaLiteBlog.Client/node_modules"
 
 echo "Build completed and deployed to $API_DIR and $CLIENT_DIR"

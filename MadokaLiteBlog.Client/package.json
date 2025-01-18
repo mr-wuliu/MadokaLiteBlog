@@ -1,0 +1,26 @@
+{
+    "name": "madokalite-blog-client",
+    "private": true,
+    "dependencies": {
+        "@benrbray/prosemirror-math": "latest",
+        "prosemirror-example-setup": "^1.2.3",
+        "prosemirror-markdown": "^1.13.1",
+        "prosemirror-model": "^1.24.1",
+        "prosemirror-schema-basic": "^1.2.3",
+        "prosemirror-schema-list": "^1.5.0",
+        "prosemirror-state": "^1.4.3",
+        "prosemirror-view": "^1.37.1"
+    },
+    "version": "1.0.0",
+    "main": "build.js",
+    "devDependencies": {
+        "esbuild": "^0.24.2"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "description": ""
+}

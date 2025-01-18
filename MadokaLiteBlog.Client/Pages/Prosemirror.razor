@@ -1,12 +1,12 @@
-@page "/editor"
-@page "/editor/{Id:long}"
-@using System.Net.Http.Json
+@page "/prosemirror"
+@page "/prosemirror/{Id:long}"
+@using System.Text.Json
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
-@inject ILogger<Editor> Logger
+@inject IJSRuntime JS
 
-<PageTitle>@(Id == null ? "创建文章" : "编辑文章")</PageTitle>
+<PageTitle>@(Id == null ? "新建文章" : "编辑文章")</PageTitle>
 
 <div class="container-fluid py-4">
     <div class="row justify-content-center">
@@ -14,7 +14,6 @@
             <div class="card shadow-sm">
                 <div class="card-body">
                     <h2 class="card-title mb-4">@(Id == null ? "创建新文章" : "编辑文章")</h2>
-                    
                     <EditForm Model="@post" OnValidSubmit="HandleValidSubmit">
                         <DataAnnotationsValidator />
                         
@@ -30,17 +29,7 @@
                                          placeholder="请输入文章摘要..." />
                             <ValidationMessage For="@(() => post.Summary)" class="text-danger" />
                         </div>
-
-                        <div class="form-group mb-4">
-                            <label for="content" class="form-label fw-bold">正文内容</label>
-                            <div class="editor-container">
-                                <InputTextArea id="content" @bind-Value="post.Content" 
-                                             class="form-control font-monospace" rows="20" 
-                                             placeholder="使用 Markdown 编写文章内容..." />
-                            </div>
-                            <ValidationMessage For="@(() => post.Content)" class="text-danger" />
-                            <small class="text-muted">支持 Markdown 格式</small>
-                        </div>
+                        <div id="editor-container" style="border: 1px solid #ccc; padding: 10px;"></div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <button type="button" class="btn btn-outline-secondary me-2">保存草稿</button>
@@ -55,38 +44,27 @@
     </div>
 </div>
 
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <div class="toast @(showToast ? "show" : "")" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="toast-header">
-            <strong class="me-auto">提示</strong>
-            <button type="button" class="btn-close" @onclick="() => showToast = false"></button>
-        </div>
-        <div class="toast-body">
-            @toastMessage
-        </div>
-    </div>
-</div>
+
+<button @onclick="GetEditorContent">获取内容</button>
 
 @code {
     [Parameter]
     public long? Id { get; set; }
-    private Post post = new();
-    private string renderedContent = string.Empty;
-    private bool showToast = false;
-    private string toastMessage = "";
+    private Post post = new Post();
     private Timer? toastTimer;
+    private string toastMessage = "";
+    private IJSObjectReference? _editorInstance;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        if (!authState.User.Identity?.IsAuthenticated ?? true)
+        if(authState.User == null)
         {
             NavigationManager.NavigateTo("/login");
-            return;
         }
 
         if (Id.HasValue)
-        {
+        {   
             await LoadPost();
         }
     }
@@ -99,19 +77,49 @@
             if (response.IsSuccessStatusCode)
             {
                 post = await response.Content.ReadFromJsonAsync<Post>() ?? new Post();
-            }
+                // 获取到Markdown, 转为WYSIWYG
+                Console.WriteLine($"Markdown Content: {post.Content}");
+                await JS.InvokeVoidAsync("setEditorContent", post.Content);
+            } 
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading post: {ex.Message}");
         }
     }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(50);
+            _editorInstance = await JS.InvokeAsync<IJSObjectReference>("initializeEditor", "editor-container");
+            Console.WriteLine($"Editor Content: {post.Content}");
+            if (!string.IsNullOrEmpty(post.Content))
+            {
+                await JS.InvokeVoidAsync("setEditorContent", post.Content);
+            }
+            Console.WriteLine("Editor initialized");
+        }
+    }
+    private async Task GetEditorContent()
+    {
+        if (_editorInstance != null)
+        {
+            // 获取 JSON 对象
+            var contentJson = await JS.InvokeAsync<JsonElement>("getEditorContent");
+            var contentString = contentJson.GetRawText();
+            Console.WriteLine($"Editor Content (Raw JSON): {contentString}");
+            var markdownText = await JS.InvokeAsync<string>("getMarkdownContent"); 
+            Console.WriteLine($"Markdown Content: {markdownText}");
 
+        }
+    }
     private async Task HandleValidSubmit()
     {
         try
         {
             HttpResponseMessage response;
+            post.Content = await JS.InvokeAsync<string>("getMarkdownContent");
             if (Id.HasValue)
             {
                 post.Id = Id.Value;
@@ -134,7 +142,6 @@
                     }
                 }
             }
-            
             response = await Http.PostAsJsonAsync("api/post/insert", post);
             
             if (response.IsSuccessStatusCode)
@@ -150,35 +157,26 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error saving post");
             ShowToast("保存失败：" + ex.Message);
         }
     }
-
     private void ShowToast(string message)
     {
         toastMessage = message;
-        showToast = true;
         
         toastTimer?.Dispose();
         toastTimer = new Timer(_ =>
         {
             InvokeAsync(() =>
             {
-                showToast = false;
                 StateHasChanged();
             });
         }, null, 3000, Timeout.Infinite);
     }
-
-    public void Dispose()
-    {
-        toastTimer?.Dispose();
-    }
-
     private class PostResponse
     {
         public long Id { get; set; }
         public string? Title { get; set; }
     }
+
 }
