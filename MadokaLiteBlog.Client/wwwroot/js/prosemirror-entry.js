@@ -144,6 +144,27 @@ const mathNodes = {
         defining: true,
         parseDOM: [{tag: "li"}],
         toDOM() { return ["li", 0] }
+    },
+    code_block: {
+        content: "text*",
+        group: "block",
+        code: true,
+        defining: true,
+        attrs: {
+            params: { default: "" }
+        },
+        parseDOM: [{
+            tag: "pre",
+            preserveWhitespace: "full",
+            getAttrs: node => ({
+                params: node.getAttribute("data-language") || ""
+            })
+        }],
+        toDOM(node) {
+            return ["pre", {
+                "data-language": node.attrs.params
+            }, ["code", 0]];
+        }
     }
 };
 
@@ -213,7 +234,13 @@ function markdownInputRules(schema) {
             (match, node) => node.childCount + node.attrs.order === +match[1]
         ),
         
-        wrappingInputRule(/^\s*([-+*])\s$/, schema.nodes.bullet_list)
+        wrappingInputRule(/^\s*([-+*])\s$/, schema.nodes.bullet_list),
+        
+        textblockTypeInputRule(
+            /^```(\w+)?$/,
+            schema.nodes.code_block,
+            match => ({ params: match[1] || "" })
+        ),
     ];
 }
 
