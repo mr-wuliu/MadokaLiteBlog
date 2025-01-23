@@ -1,0 +1,48 @@
+@inject IJSRuntime JS
+
+<div id="@editorId" class="math-editor" style="border: 1px solid #ccc; padding: 10px;"></div>
+
+@code {
+    [Parameter]
+    public string? Content { get; set; }
+
+    private string editorId = $"editor-{Guid.NewGuid()}";
+    private IJSObjectReference? _editorInstance;
+    private bool _initialized;
+    private string? _lastContent;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_initialized)
+        {
+            _initialized = true;
+            _editorInstance = await JS.InvokeAsync<IJSObjectReference>("initializeEditor", editorId);
+            if (!string.IsNullOrEmpty(Content))
+            {
+                _lastContent = Content;
+                Console.WriteLine("Content: " + Content);
+                await JS.InvokeVoidAsync("setEditorContent", Content);
+                @* await JS.InvokeVoidAsync("renderMath"); *@
+            }
+        }
+    }
+
+    public override async Task SetParametersAsync(ParameterView parameters)
+    {
+        await base.SetParametersAsync(parameters);
+        if (_initialized && Content != _lastContent)
+        {
+            _lastContent = Content;
+            if (_editorInstance is not null)
+            {
+                await JS.InvokeVoidAsync("setEditorContent", Content);
+                await JS.InvokeVoidAsync("renderMath");
+            }
+        }
+    }
+
+    public async Task<string> GetMarkdownContent()
+    {
+        return await JS.InvokeAsync<string>("getMarkdownContent");
+    }
+}

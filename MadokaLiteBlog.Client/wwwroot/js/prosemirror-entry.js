@@ -68,13 +68,14 @@ const mathNodes = {
         }
     },
     math_inline: {
-        group: "inline math", 
+        group: "inline math",
         content: "text*",
         inline: true,
         atom: true,
         toDOM: () => ["math-inline", { class: "math-node" }, 0],
         parseDOM: [{
-            tag: "math-inline"
+            tag: "math-inline",
+            preserveWhitespace: "full"
         }]
     },
     math_display: {
@@ -84,7 +85,8 @@ const mathNodes = {
         code: true,
         toDOM: () => ["math-display", { class: "math-node" }, 0],
         parseDOM: [{
-            tag: "math-display"
+            tag: "math-display",
+            preserveWhitespace: "full"
         }]
     },
     text: {
@@ -291,7 +293,10 @@ const mathPlugins = [
         "Mod-Space": insertMathCmd(mySchema.nodes.math_inline),
         "Backspace": chainCommands(deleteSelection, mathBackspaceCmd, joinBackward, selectNodeBackward),
     }),
-    inputRules({ rules: [inlineMathInputRule, blockMathInputRule] })
+    inputRules({ rules: [
+        makeInlineMathInputRule(REGEX_INLINE_MATH_DOLLARS, mySchema.nodes.math_inline),
+        makeBlockMathInputRule(REGEX_BLOCK_MATH_DOLLARS, mySchema.nodes.math_display)
+    ]})
 ];
 
 const markdownPlugin = inputRules({
@@ -306,6 +311,10 @@ const allPlugins = [
 
 function initializeEditor(elementId) {
     const editorElement = document.getElementById(elementId);
+    if (!editorElement) {
+        console.error(`Element with id ${elementId} not found`);
+        return null;
+    }
 
     const editorState = EditorState.create({
         schema: mySchema,
@@ -328,26 +337,60 @@ function getEditorContent() {
     return state.doc.toJSON();
 }
 
-function getMarkdownContent() {
-    const state = window.editorView.state;
-    return defaultMarkdownSerializer.serialize(state.doc);
-}
+// 使用 prosemirror-math 提供的解析器和序列化器
+const mathParser = {
+    parse: (content) => {
+        try {
+            // 直接使用原始内容，让 prosemirror-math 的插件处理公式
+            return defaultMarkdownParser.parse(content || '');
+        } catch (error) {
+            console.error("Math parsing error:", error);
+            return defaultMarkdownParser.parse(content || '');
+        }
+    }
+};
 
 function setEditorContent(markdown) {
     if (!window.editorView) return;
     
     try {
-        const doc = defaultMarkdownParser.parse(markdown || '');
-        
-        const newState = EditorState.create({
-            doc,
-            schema: mySchema,
-            plugins: allPlugins
-        });
+        const doc = mathParser.parse(markdown);
+        console.log(doc);
+        // 创建事务而不是新的状态
+        const tr = window.editorView.state.tr.replace(
+            0,                          // 从文档开始
+            window.editorView.state.doc.content.size,  // 到文档结束
+            doc                         // 用新的文档内容
+        );
 
-        window.editorView.updateState(newState);
+        // 应用事务，这样会保持所有现有的插件状态
+        window.editorView.dispatch(tr);
+        
+        // 手动触发数学公式的解析
+        console.log("setEditorContent");
+        const mathNodes = window.editorView.dom.querySelectorAll('.math-node');
+        mathNodes.forEach(node => {
+            node.dispatchEvent(new Event('rendermath'));
+        });
+        
     } catch (error) {
-        console.error("Error parsing markdown:", error);
+        console.error("Error setting content:", error);
+    }
+}
+function getMarkdownContent() {
+    const state = window.editorView.state;
+    return defaultMarkdownSerializer.serialize(state.doc);
+}
+function renderMath() {
+    if (!window.editorView) return;
+    
+    // 触发编辑器重新渲染
+    window.editorView.updateState(window.editorView.state);
+    
+    // 手动触发 math 插件的重新渲染
+    const mathView = window.editorView.dom.querySelector('.math-node');
+    if (mathView) {
+        mathView.dispatchEvent(new Event('rendermath'));
     }
 }
 
@@ -355,3 +398,4 @@ window.initializeEditor = initializeEditor;
 window.getEditorContent = getEditorContent;
 window.getMarkdownContent = getMarkdownContent;
 window.setEditorContent = setEditorContent;
+window.renderMath = renderMath;

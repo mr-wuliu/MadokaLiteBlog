@@ -1,6 +1,7 @@
 @page "/prosemirror"
 @page "/prosemirror/{Id:long}"
 @using System.Text.Json
+@using MadokaLiteBlog.Client.Components
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthStateProvider
@@ -29,7 +30,8 @@
                                          placeholder="请输入文章摘要..." />
                             <ValidationMessage For="@(() => post.Summary)" class="text-danger" />
                         </div>
-                        <div id="editor-container" style="border: 1px solid #ccc; padding: 10px;"></div>
+
+                        <Editor @ref="editorComponent" Content="@post.Content" />
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <button type="button" class="btn btn-outline-secondary me-2">保存草稿</button>
@@ -53,7 +55,8 @@
     private Post post = new Post();
     private Timer? toastTimer;
     private string toastMessage = "";
-    private IJSObjectReference? _editorInstance;
+    @* private IJSObjectReference? _editorInstance; *@
+    private Editor? editorComponent;
 
     protected override async Task OnInitializedAsync()
     {
@@ -61,6 +64,11 @@
         if(authState.User == null)
         {
             NavigationManager.NavigateTo("/login");
+        }
+        
+        if (Id.HasValue)
+        {   
+            await LoadPost();
         }
     }
     
@@ -72,7 +80,7 @@
             if (response.IsSuccessStatusCode)
             {
                 post = await response.Content.ReadFromJsonAsync<Post>() ?? new Post();
-                await JS.InvokeVoidAsync("setEditorContent", post.Content);
+                StateHasChanged(); // 强制更新UI
             } 
         }
         catch (Exception ex)
@@ -80,35 +88,30 @@
             Console.WriteLine($"Error loading post: {ex.Message}");
         }
     }
-    protected override async Task OnAfterRenderAsync(bool firstRender) {
-        if (firstRender)
-        {
-            _editorInstance = await JS.InvokeAsync<IJSObjectReference>("initializeEditor", "editor-container");
-            if (Id.HasValue)
-            {   
-                await LoadPost();
-            }
-        }
-    }
     private async Task GetEditorContent()
     {
-        if (_editorInstance != null)
-        {
+        @* if (_editorInstance != null) *@
+        @* { *@
             // 获取 JSON 对象
-            var contentJson = await JS.InvokeAsync<JsonElement>("getEditorContent");
-            var contentString = contentJson.GetRawText();
-            Console.WriteLine($"Editor Content (Raw JSON): {contentString}");
-            var markdownText = await JS.InvokeAsync<string>("getMarkdownContent"); 
-            Console.WriteLine($"Markdown Content: {markdownText}");
+        var contentJson = await JS.InvokeAsync<JsonElement>("getEditorContent");
+        var contentString = contentJson.GetRawText();
+        Console.WriteLine($"Editor Content (Raw JSON): {contentString}");
+        var markdownText = await JS.InvokeAsync<string>("getMarkdownContent"); 
+        Console.WriteLine($"Markdown Content: {markdownText}");
 
-        }
+        @* } *@
     }
     private async Task HandleValidSubmit()
     {
         try
         {
             HttpResponseMessage response;
-            post.Content = await JS.InvokeAsync<string>("getMarkdownContent");
+            if (editorComponent is not null)
+            {
+                post.Content = await editorComponent.GetMarkdownContent();
+                Console.WriteLine($"Content to save: {post.Content}"); // 添加调试日志
+            }
+
             if (Id.HasValue)
             {
                 post.Id = Id.Value;
@@ -124,12 +127,9 @@
                         NavigationManager.NavigateTo($"/article/{Id}");
                         return;
                     }
-                    else
-                    {
-                        ShowToast("更新失败");
-                        return;
-                    }
                 }
+                ShowToast("更新失败");
+                return;
             }
             response = await Http.PostAsJsonAsync("api/post/insert", post);
             
@@ -147,6 +147,7 @@
         catch (Exception ex)
         {
             ShowToast("保存失败：" + ex.Message);
+            Console.WriteLine($"Error: {ex}"); // 添加错误日志
         }
     }
     private void ShowToast(string message)
