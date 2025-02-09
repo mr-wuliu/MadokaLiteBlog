@@ -115,8 +115,9 @@
             if (Id.HasValue)
             {
                 post.Id = Id.Value;
+                Console.WriteLine("post: " + post.Content);
                 response = await Http.PostAsJsonAsync("api/post/update", post);
-                
+                Console.WriteLine("response: " + response);
                 if (response.IsSuccessStatusCode)
                 {
                     var result = await response.Content.ReadFromJsonAsync<int>();
@@ -147,7 +148,7 @@
         catch (Exception ex)
         {
             ShowToast("保存失败：" + ex.Message);
-            Console.WriteLine($"Error: {ex}"); // 添加错误日志
+            Console.WriteLine($"Error: {ex}");
         }
     }
     private void ShowToast(string message)

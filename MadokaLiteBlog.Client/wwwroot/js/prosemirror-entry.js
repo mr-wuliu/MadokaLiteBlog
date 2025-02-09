@@ -11,12 +11,12 @@ export * from "@benrbray/prosemirror-math";
 
 import {EditorState} from "prosemirror-state"
 import {EditorView} from "prosemirror-view"
-import {Schema} from "prosemirror-model"
+import {Schema, Slice} from "prosemirror-model"
 import {schema} from "prosemirror-schema-basic"
 import {keymap} from "prosemirror-keymap"
 import { chainCommands, deleteSelection, joinBackward, selectNodeBackward} from "prosemirror-commands"
 import {exampleSetup} from "prosemirror-example-setup"
-import {defaultMarkdownParser, defaultMarkdownSerializer} from "prosemirror-markdown"
+import {defaultMarkdownParser, defaultMarkdownSerializer, MarkdownSerializer} from "prosemirror-markdown"
 import {
     inputRules,
     textblockTypeInputRule,
@@ -328,26 +328,151 @@ function getEditorContent() {
     return state.doc.toJSON();
 }
 
+const customMarkdownSerializer = new MarkdownSerializer({
+    ...defaultMarkdownSerializer.nodes,
+    math_display: (state, node) => {
+        state.write('\n$$\n');
+        state.write(node.textContent);
+        state.write('\n$$\n');
+    },
+    math_inline: (state, node) => {
+        state.write('$');
+        state.write(node.textContent);
+        state.write('$');
+    }
+}, defaultMarkdownSerializer.marks);
+
 function getMarkdownContent() {
     const state = window.editorView.state;
-    return defaultMarkdownSerializer.serialize(state.doc);
+    console.log("Editor state:", state);
+    
+    try {
+        // 使用修正后的序列化器
+        let content = customMarkdownSerializer.serialize(state.doc);
+        
+        // 清理多余的换行
+        content = content
+            .replace(/^\n+/, '')
+            .replace(/\n+$/, '\n');
+        
+        console.log("Serialized content:", content);
+        return content;
+    } catch (error) {
+        console.error("Serialization error:", error);
+        return state.doc.textContent || '';
+    }
 }
 
 function setEditorContent(markdown) {
+    // FIXME
     if (!window.editorView) return;
     
     try {
-        const doc = defaultMarkdownParser.parse(markdown || '');
+        console.log("Setting content with markdown:", markdown);
+        const tr = window.editorView.state.tr;
         
-        const newState = EditorState.create({
-            doc,
-            schema: mySchema,
-            plugins: allPlugins
-        });
+        if (window.editorView.state.doc.content.size > 0) {0
+            tr.delete(0, window.editorView.state.doc.content.size);
+        }
+        console.log("开始执行");
+        const isFormula = /^\$\$[\s\S]+\$\$$/m.test(markdown) || /^\$[^\$\n]+?\$$/m.test(markdown);
+        console.log("isFormula: " + isFormula);
+        if (isFormula) {
+            // 处理公式
+            const segments = markdown.split(/(\$\$[\s\S]+?\$\$|\$[^\$\n]+?\$)/g);
+            console.log("segments: ", segments);
+            let pos = 0;
+            segments.forEach(segment => {
+                console.log("segment: ", segment);
+                console.log("pos: ", pos);
+                
+                // 获取最新的事务
+                let tr = window.editorView.state.tr;
 
-        window.editorView.updateState(newState);
+                // 打印当前文档的内容
+                console.log("Current document content: ", tr.doc.toJSON());
+                
+                if (segment.startsWith('$$') && segment.endsWith('$$')) {
+                    // 处理块级公式
+                    const formula = segment.slice(2, -2).trim();
+                    const node = mySchema.nodes.math_display.create(
+                        null,
+                        mySchema.text(formula)
+                    );
+                    console.log("Inserting block math node at pos: ", pos);
+                    if (pos <= tr.doc.content.size) {
+                        tr.insert(pos, node);
+                        pos += node.nodeSize; // 更新位置
+                    } else {
+                        console.error(`Position ${pos} is out of range for insertion.`);
+                    }
+                } else if (segment.startsWith('$') && segment.endsWith('$')) {
+                    // 处理行内公式
+                    const formula = segment.slice(1, -1).trim();
+                    const node = mySchema.nodes.math_inline.create(
+                        null,
+                        mySchema.text(formula)
+                    );
+                    console.log("Inserting inline math node at pos: ", pos);
+                    if (pos <= tr.doc.content.size) {
+                        tr.insert(pos, node);
+                        pos += node.nodeSize; // 更新位置
+                    } else {
+                        console.error(`Position ${pos} is out of range for insertion.`);
+                    }
+                } else if (segment.trim()) {
+                    const doc = defaultMarkdownParser.parse(segment);
+                    console.log("doc.content:", doc.content.toJSON());
+                    
+                    doc.content.forEach(node => {
+                        console.log("node: ", node);
+                        console.log("node pos before insertion: ", pos);
+                        try {
+                            // 插入节点
+                            if (pos <= tr.doc.content.size) {
+                                tr.insert(pos, node);
+                                console.log(`Node inserted at position ${pos}`);
+                                pos += node.nodeSize; // 更新位置
+                            } else {
+                                console.error(`Position ${pos} is out of range for insertion.`);
+                            }
+                        } catch (error) {
+                            console.error(`Error inserting node at position ${pos}:`, error);
+                        }
+                    });
+                    
+                    console.log("Updated pos after text:", pos);
+                }
+                
+                // 在每次插入后更新tr
+                tr = window.editorView.state.tr;
+            });
+
+            // 在所有插入操作后，检查最终的pos值
+            console.log("Final pos after all insertions: ", pos);
+        } else {
+            // 处理普通文本
+            const textNode = mySchema.nodes.paragraph.create(
+                null,
+                mySchema.text(markdown)
+            );
+            tr.insert(0, textNode);
+        }
+        
+        // 应用事务
+        window.editorView.dispatch(tr);
+        
+        console.log("Content loaded, final state:", window.editorView.state.doc.toJSON());
+        
     } catch (error) {
-        console.error("Error parsing markdown:", error);
+        console.error("Error setting content:", error);
+        // 错误处理：直接插入文本
+        const tr = window.editorView.state.tr;
+        if (window.editorView.state.doc.content.size > 0) {
+            tr.delete(0, window.editorView.state.doc.content.size);
+        }
+        tr.insertText(markdown || '', 0);
+        window.editorView.dispatch(tr);
     }
 }
 
