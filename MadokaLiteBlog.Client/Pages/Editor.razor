@@ -1,5 +1,5 @@
-@page "/prosemirror"
-@page "/prosemirror/{Id:long}"
+@page "/editor"
+@page "/editor/{Id:long}"
 @using System.Text.Json
 @using MadokaLiteBlog.Client.Components
 @inject HttpClient Http
@@ -30,9 +30,14 @@
                                          placeholder="请输入文章摘要..." />
                             <ValidationMessage For="@(() => post.Summary)" class="text-danger" />
                         </div>
-
-                        <Editor @ref="editorComponent" Content="@post.Content" />
-
+                        @if (isLoaded)
+                        {
+                            <Prosemirror @ref="editorComponent" Content="@post.Content" />
+                        }
+                        else
+                        {
+                            <p>Loading...</p>
+                        }
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <button type="button" class="btn btn-outline-secondary me-2">保存草稿</button>
                             <button type="submit" class="btn btn-primary px-4">
@@ -47,16 +52,14 @@
 </div>
 
 
-<button @onclick="GetEditorContent">获取内容</button>
-
 @code {
     [Parameter]
     public long? Id { get; set; }
     private Post post = new Post();
     private Timer? toastTimer;
     private string toastMessage = "";
-    @* private IJSObjectReference? _editorInstance; *@
-    private Editor? editorComponent;
+    private bool isLoaded = false;
+    private Prosemirror? editorComponent;
 
     protected override async Task OnInitializedAsync()
     {
@@ -69,6 +72,8 @@
         if (Id.HasValue)
         {   
             await LoadPost();
+        } else {
+            isLoaded = true;
         }
     }
     
@@ -80,6 +85,7 @@
             if (response.IsSuccessStatusCode)
             {
                 post = await response.Content.ReadFromJsonAsync<Post>() ?? new Post();
+                isLoaded = true;
                 StateHasChanged(); // 强制更新UI
             } 
         }
@@ -87,19 +93,6 @@
         {
             Console.WriteLine($"Error loading post: {ex.Message}");
         }
-    }
-    private async Task GetEditorContent()
-    {
-        @* if (_editorInstance != null) *@
-        @* { *@
-            // 获取 JSON 对象
-        var contentJson = await JS.InvokeAsync<JsonElement>("getEditorContent");
-        var contentString = contentJson.GetRawText();
-        Console.WriteLine($"Editor Content (Raw JSON): {contentString}");
-        var markdownText = await JS.InvokeAsync<string>("getMarkdownContent"); 
-        Console.WriteLine($"Markdown Content: {markdownText}");
-
-        @* } *@
     }
     private async Task HandleValidSubmit()
     {

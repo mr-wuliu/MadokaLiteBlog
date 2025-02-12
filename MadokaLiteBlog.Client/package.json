@@ -2,6 +2,7 @@
     "name": "madokalite-blog-client",
     "private": true,
     "dependencies": {
+        "markdown-it-texmath": "^1.0.0",
         "@benrbray/prosemirror-math": "latest",
         "prosemirror-example-setup": "^1.2.3",
         "prosemirror-markdown": "^1.13.1",
