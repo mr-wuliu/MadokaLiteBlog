@@ -1,0 +1,33 @@
+@inject IJSRuntime JS
+
+<div id="@editorId" class="math-editor" style="border: 1px solid #ccc; padding: 10px;"></div>
+
+@code {
+    [Parameter]
+    public string? Content { get; set; }
+    private string editorId = $"editor-{Guid.NewGuid()}";
+    private IJSObjectReference? _editorInstance;
+    /// <summary>
+    /// Blazor组件的生命周期包括:
+    /// 1. OnInitializedAsync: 组件初始化时调用
+    /// 2. OnAfterRenderAsync: 组件渲染后调用
+    /// 3. OnParametersSetAsync: 组件参数设置后调用
+    /// 4. OnParametersChangedAsync: 组件参数变化时调用
+    /// 5. OnAfterRender: 组件渲染后调用
+    /// 6. OnDisposed: 组件销毁时调用
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Content == null) {
+            Content = "";
+        }
+        _editorInstance = await JS.InvokeAsync<IJSObjectReference>("initializeEditor", editorId, Content);
+    }
+
+
+
+    public async Task<string> GetMarkdownContent()
+    {
+        return await JS.InvokeAsync<string>("getMarkdownContent");
+    }
+}
