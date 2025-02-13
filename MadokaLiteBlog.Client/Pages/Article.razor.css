@@ -1,7 +1,11 @@
 #article-content.article-content {
     width: 100%;
     padding: 0 15px;
-    user-select: none;  /* 防止文本选择 */
+    caret-color: transparent;  /* 隐藏光标 */
+}
+
+.text-muted small {
+    font-size: 0.9rem;
 }
 
 /* 图片基本样式 */
