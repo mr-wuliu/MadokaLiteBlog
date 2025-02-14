@@ -15,13 +15,13 @@ export * from "markdown-it";
 import {EditorState} from "prosemirror-state"
 import {EditorView} from "prosemirror-view"
 import { baseKeymap } from "prosemirror-commands";
-import {Schema, Slice} from "prosemirror-model"
+import {Schema} from "prosemirror-model"
 import { schema as basicSchema } from "prosemirror-schema-basic"; // 导入基本 schema
 import {keymap} from "prosemirror-keymap"
 import { chainCommands, deleteSelection, joinBackward, selectNodeBackward} from "prosemirror-commands"
-import { MarkdownParser } from "prosemirror-markdown"; // 添加此行以导入 MarkdownParser
+import { MarkdownParser } from "prosemirror-markdown";
 import { history, undo, redo } from "prosemirror-history";
-import {defaultMarkdownParser, defaultMarkdownSerializer, MarkdownSerializer} from "prosemirror-markdown"
+import {defaultMarkdownSerializer} from "prosemirror-markdown"
 import { mergeDelimiters, inline as texmathInline, block as texmathBlock } from 'markdown-it-texmath';
 import MarkdownIt from 'markdown-it';
 import {
@@ -46,7 +46,6 @@ function listIsTight(tokens, i) {
       if (tokens[i].type != "list_item_open") return tokens[i].hidden
     return false
 }
-
 
 const mathNodes = {
 
@@ -397,4 +396,11 @@ function initializeEditor(elementId, markdown_content) {
     return view;
 }
 
+function exportMarkdown() {
+    if (!window.view) return "";
+    const doc = window.view.state.doc;
+    return defaultMarkdownSerializer.serialize(doc);
+}
+
 window.initializeEditor = initializeEditor;
+window.exportMarkdown = exportMarkdown;

@@ -23,11 +23,8 @@
         }
         _editorInstance = await JS.InvokeAsync<IJSObjectReference>("initializeEditor", editorId, Content);
     }
-
-
-
     public async Task<string> GetMarkdownContent()
     {
-        return await JS.InvokeAsync<string>("getMarkdownContent");
+        return await JS.InvokeAsync<string>("exportMarkdown");
     }
 }
