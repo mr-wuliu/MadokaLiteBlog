@@ -47,7 +47,6 @@ function listIsTight(tokens, i) {
     return false
 }
 
-
 const mathNodes = {
 
     doc: {
