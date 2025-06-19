@@ -396,10 +396,32 @@ function initializeEditor(elementId, markdown_content) {
     return view;
 }
 
+const mathMarkdownSerializer = {
+    ...defaultMarkdownSerializer.nodes,
+    math_inline: (state, node) => {
+        state.text('$' + node.textContent + '$');
+    },
+    math_display: (state, node) => {
+        state.text('$$\n' + node.textContent + '\n$$\n\n');
+    },
+    math_inline_double: (state, node) => {
+        state.text('$$' + node.textContent + '$$');
+    }
+};
+
+const customMarkdownSerializer = {
+    nodes: mathMarkdownSerializer,
+    marks: defaultMarkdownSerializer.marks
+};
+
 function exportMarkdown() {
-    if (!window.view) return "";
-    const doc = window.view.state.doc;
-    return defaultMarkdownSerializer.serialize(doc);
+    try {
+        const content = customMarkdownSerializer.serialize(window.view.state.doc);
+        return content;
+    } catch (error) {
+        console.error('Error serializing markdown:', error);
+        throw error;
+    }
 }
 
 window.initializeEditor = initializeEditor;

@@ -1,4 +1,7 @@
-﻿<div class="navbar navbar-expand-lg navbar-dark bg-dark">
+﻿@using MadokaLiteBlog.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">MadokaLiteBlog</a>
         <button class="navbar-toggler" type="button" @onclick="ToggleNavMenu">
