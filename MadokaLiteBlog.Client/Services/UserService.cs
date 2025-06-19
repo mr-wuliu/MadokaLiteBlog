@@ -1,4 +1,7 @@
 using System.Net.Http.Json;
+using MadokaLiteBlog.Client.Models;
+
+namespace MadokaLiteBlog.Client.Services;
 
 public interface IUserService
 {
