@@ -40,6 +40,12 @@
                         }
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <button type="button" class="btn btn-outline-secondary me-2">保存草稿</button>
+                            @if (Id.HasValue)
+                            {
+                                <button type="button" class="btn btn-danger me-2" @onclick="ShowDeleteConfirmation">
+                                    <i class="bi bi-trash"></i> 删除文章
+                                </button>
+                            }
                             <button type="submit" class="btn btn-primary px-4">
                                 @(Id == null ? "发布文章" : "更新文章")
                             </button>
@@ -51,6 +57,41 @@
     </div>
 </div>
 
+<!-- 删除确认对话框 -->
+@if (showDeleteDialog)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">确认删除</h5>
+                    <button type="button" class="btn-close" @onclick="HideDeleteConfirmation"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要删除文章 "<strong>@post.Title</strong>" 吗？</p>
+                    <p class="text-danger">此操作不可撤销！</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="HideDeleteConfirmation">取消</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeletePost">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+<!-- Toast 消息 -->
+@if (!string.IsNullOrEmpty(toastMessage))
+{
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast show" role="alert">
+            <div class="toast-body">
+                @toastMessage
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     [Parameter]
@@ -60,6 +101,7 @@
     private string toastMessage = "";
     private bool isLoaded = false;
     private Prosemirror? editorComponent;
+    private bool showDeleteDialog = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -94,6 +136,57 @@
             Console.WriteLine($"Error loading post: {ex.Message}");
         }
     }
+
+    private void ShowDeleteConfirmation()
+    {
+        showDeleteDialog = true;
+        StateHasChanged();
+    }
+
+    private void HideDeleteConfirmation()
+    {
+        showDeleteDialog = false;
+        StateHasChanged();
+    }
+
+    private async Task DeletePost()
+    {
+        try
+        {
+            if (!Id.HasValue)
+            {
+                ShowToast("无法删除：文章ID无效");
+                return;
+            }
+
+            var response = await Http.PostAsJsonAsync("api/post/delete", Id.Value);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<int>();
+                if (result == 1)
+                {
+                    ShowToast("文章删除成功！");
+                    HideDeleteConfirmation();
+                    await Task.Delay(1500);
+                    NavigationManager.NavigateTo("/posts");
+                }
+                else
+                {
+                    ShowToast("删除失败：文章可能不存在");
+                }
+            }
+            else
+            {
+                ShowToast("删除失败：" + response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast("删除失败：" + ex.Message);
+        }
+    }
+
     private async Task HandleValidSubmit()
     {
         try
@@ -153,6 +246,7 @@
         {
             InvokeAsync(() =>
             {
+                toastMessage = "";
                 StateHasChanged();
             });
         }, null, 3000, Timeout.Infinite);
