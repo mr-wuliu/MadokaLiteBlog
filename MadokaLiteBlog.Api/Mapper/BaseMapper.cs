@@ -306,10 +306,16 @@ public abstract class BaseMapper<T> where T : class
     }
     public async Task<int> DeleteAsync(object id)
     {
-        // !! FIXME
+        var properties = typeof(T).GetProperties();
+        var keyProperty = properties.FirstOrDefault(
+            p => p.GetCustomAttributes(typeof(KeyAttribute), false).Length > 0)
+            ?? throw new Exception("类中没有KeyAttribute属性");
+        var keyName = keyProperty.GetCustomAttribute<KeyAttribute>()?.Name 
+            ?? keyProperty.Name;
+        
         var tableAttribute = typeof(T).GetCustomAttributes(typeof(TableAttribute), false).FirstOrDefault(); 
         var tableName = tableAttribute != null ? (tableAttribute as TableAttribute)?.Name : typeof(T).Name;
-        return await _dbContext.ExecuteAsync($"DELETE FROM \"{tableName}\" WHERE Id = @Id", new { Id = id });
+        return await _dbContext.ExecuteAsync($"DELETE FROM \"{tableName}\" WHERE \"{keyName}\" = @Id", new { Id = id });
     }
 
     /// <summary>

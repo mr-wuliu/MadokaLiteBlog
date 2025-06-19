@@ -29,7 +29,7 @@ public class PostController : ControllerBase
     }
     [Authorize]
     [HttpPost("delete")]
-    public async Task<IActionResult> DeletePost(long id)
+    public async Task<IActionResult> DeletePost([FromBody] long id)
     {
         var result = await _postServer.DeletePost(id);
         return Ok(result);
