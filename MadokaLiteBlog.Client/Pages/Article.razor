@@ -148,11 +148,29 @@
 
             var pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
+                .UseEmphasisExtras()
+                .UseGridTables()
+                .UsePipeTables()
+                .UseTaskLists()
+                .UseAutoLinks()
+                .UseEmojiAndSmiley()
+                .UseBootstrap()
+                .UseFooters()
+                .UseFootnotes()
+                .UseCitations()
+                .UseCustomContainers()
+                .UseDefinitionLists()
+                .UseFigures()
+                .UseAutoIdentifiers()
+                .UseGenericAttributes()
+                .UseMediaLinks()
                 .UseMathematics()
                 .Build();
             @* return Markdown.ToHtml(builder.ToString(), pipeline); *@
             content = content.Replace("\\\\", "\\\\\\\\");
-            return Markdown.ToHtml(content, pipeline);
+            var html = Markdown.ToHtml(content, pipeline);
+            Console.WriteLine("Generated HTML: " + html);
+            return html;
         }
         catch (Exception ex)
         {
