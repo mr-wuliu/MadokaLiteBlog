@@ -192,21 +192,53 @@
         try
         {
             HttpResponseMessage response;
-            if (editorComponent is not null)
+            
+            // 尝试获取编辑器内容，如果失败则使用空内容
+            try
             {
-                post.Content = await editorComponent.GetMarkdownContent();
-                Console.WriteLine($"Content to save: {post.Content}"); // 添加调试日志
+                if (editorComponent is not null)
+                {
+                    post.Content = await editorComponent.GetMarkdownContent();
+                    Console.WriteLine($"Content to save: {post.Content}");
+                }
+                else
+                {
+                    Console.WriteLine("Editor component is null");
+                    post.Content = post.Content ?? "";
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting markdown content: {ex.Message}");
+                // 如果获取内容失败，使用当前内容或空字符串
+                post.Content = post.Content ?? "";
+            }
+
+            // 创建自定义的 JSON 序列化选项，禁用反斜杠转义
+            var jsonOptions = new JsonSerializerOptions
+            {
+                WriteIndented = false,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            };
 
             if (Id.HasValue)
             {
                 post.Id = Id.Value;
-                Console.WriteLine("post: " + post.Content);
-                response = await Http.PostAsJsonAsync("api/post/update", post);
-                Console.WriteLine("response: " + response);
+                Console.WriteLine($"Updating post {Id} with content length: {post.Content?.Length ?? 0}");
+                Console.WriteLine($"Content preview: {post.Content?.Substring(0, Math.Min(200, post.Content?.Length ?? 0))}");
+                
+                // 使用自定义的 JSON 序列化选项
+                var jsonContent = JsonSerializer.Serialize(post, jsonOptions);
+                Console.WriteLine($"Serialized JSON preview: {jsonContent.Substring(0, Math.Min(200, jsonContent.Length))}");
+                var stringContent = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
+                response = await Http.PostAsync("api/post/update", stringContent);
+                
+                Console.WriteLine($"Update response status: {response.StatusCode}");
+                
                 if (response.IsSuccessStatusCode)
                 {
                     var result = await response.Content.ReadFromJsonAsync<int>();
+                    Console.WriteLine($"Update result: {result}");
                     if (result == 1)
                     {
                         ShowToast("文章更新成功！");
@@ -214,11 +246,29 @@
                         NavigationManager.NavigateTo($"/article/{Id}");
                         return;
                     }
+                    else
+                    {
+                        ShowToast("更新失败：服务器返回错误");
+                    }
                 }
-                ShowToast("更新失败");
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Update failed with status {response.StatusCode}: {errorContent}");
+                    ShowToast($"更新失败：{response.StatusCode}");
+                }
                 return;
             }
-            response = await Http.PostAsJsonAsync("api/post/insert", post);
+            
+            // 新建文章
+            Console.WriteLine("Creating new post");
+            
+            // 使用自定义的 JSON 序列化选项
+            var insertJsonContent = JsonSerializer.Serialize(post, jsonOptions);
+            var insertStringContent = new StringContent(insertJsonContent, System.Text.Encoding.UTF8, "application/json");
+            response = await Http.PostAsync("api/post/insert", insertStringContent);
+            
+            Console.WriteLine($"Insert response status: {response.StatusCode}");
             
             if (response.IsSuccessStatusCode)
             {
@@ -229,12 +279,22 @@
                     await Task.Delay(1500);
                     NavigationManager.NavigateTo($"/article/{result.Id}");
                 }
+                else
+                {
+                    ShowToast("发布失败：服务器返回无效数据");
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Insert failed with status {response.StatusCode}: {errorContent}");
+                ShowToast($"发布失败：{response.StatusCode}");
             }
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Error in HandleValidSubmit: {ex}");
             ShowToast("保存失败：" + ex.Message);
-            Console.WriteLine($"Error: {ex}");
         }
     }
     private void ShowToast(string message)
