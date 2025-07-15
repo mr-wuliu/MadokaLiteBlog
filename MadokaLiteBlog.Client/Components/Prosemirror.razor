@@ -25,6 +25,19 @@
     }
     public async Task<string> GetMarkdownContent()
     {
-        return await JS.InvokeAsync<string>("exportMarkdown");
+        try
+        {
+            Console.WriteLine($"Getting markdown content for editorId: {editorId}");
+            var content = await JS.InvokeAsync<string>("exportMarkdown", editorId);
+            Console.WriteLine($"Retrieved content length: {content?.Length ?? 0}");
+            Console.WriteLine($"Content preview: {content?.Substring(0, Math.Min(100, content?.Length ?? 0))}");
+            return content ?? "";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting markdown content: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            return "";
+        }
     }
 }
