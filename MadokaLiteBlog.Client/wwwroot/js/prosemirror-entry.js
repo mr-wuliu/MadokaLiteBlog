@@ -451,32 +451,188 @@ function initializeEditor(elementId, markdown_content) {
     }
     
     try {
-        // 手动处理数学公式
+        // 新的混合解决方案：先解析 Markdown，然后替换数学公式
+        
+        // 步骤1：存储数学公式并用占位符替换
+        const mathBlocks = new Map();
+        const mathInlines = new Map();
+        let blockCounter = 0;
+        let inlineCounter = 0;
+        
         let processedContent = markdown_content;
         
         // 处理块公式 $$...$$
         processedContent = processedContent.replace(/\$\$\s*\n?([\s\S]*?)\n?\s*\$\$/g, (match, content) => {
-            console.log("Found block math:", content.trim());
-            return `[BLOCK_MATH]${content.trim()}[/BLOCK_MATH]`;
+            const placeholder = `MATHBLOCK${blockCounter}PLACEHOLDER`;
+            let cleanedContent = content.trim();
+            
+            // 检查并修复重复的反斜杠转义
+            if (cleanedContent.includes('\\\\')) {
+                let prevContent;
+                do {
+                    prevContent = cleanedContent;
+                    cleanedContent = cleanedContent.replace(/\\\\/g, '\\');
+                } while (prevContent !== cleanedContent);
+                console.log("Found block math with double backslashes, cleaned:", cleanedContent);
+            } else {
+                console.log("Found block math:", cleanedContent);
+            }
+            
+            mathBlocks.set(placeholder, cleanedContent);
+            blockCounter++;
+            return placeholder;
         });
         
         // 处理行内公式 $...$
         processedContent = processedContent.replace(/\$([^$\n]+)\$/g, (match, content) => {
-            console.log("Found inline math:", content.trim());
-            return `[INLINE_MATH]${content.trim()}[/INLINE_MATH]`;
+            const placeholder = `MATHINLINE${inlineCounter}PLACEHOLDER`;
+            let cleanedContent = content.trim();
+            
+            // 检查并修复重复的反斜杠转义
+            if (cleanedContent.includes('\\\\')) {
+                let prevContent;
+                do {
+                    prevContent = cleanedContent;
+                    cleanedContent = cleanedContent.replace(/\\\\/g, '\\');
+                } while (prevContent !== cleanedContent);
+                console.log("Found inline math with double backslashes, cleaned:", cleanedContent);
+            } else {
+                console.log("Found inline math:", cleanedContent);
+            }
+            
+            mathInlines.set(placeholder, cleanedContent);
+            inlineCounter++;
+            return placeholder;
         });
         
-        console.log("Processed content:", processedContent);
+        console.log("Processed content with placeholders:", processedContent);
         
-        // 先用普通的 markdown 解析器解析
-        const tokens = latexParser.parse(processedContent);
-        console.log("tokens:", tokens.toString());
+        // 步骤2：用普通的 markdown 解析器解析（不包含数学公式）
+        const parsedDoc = latexParser.parse(processedContent);
+        console.log("Parsed doc:", parsedDoc.toString());
         
-        // 手动创建包含数学节点的文档
-        const finalDoc = createMathDoc(processedContent, latexSchema);
+        // 步骤3：遍历文档，替换占位符为数学节点
+        function replacePlaceholders(node) {
+            if (node.type.name === 'text') {
+                const text = node.text;
+                let hasChanges = false;
+                let newContent = [];
+                let lastIndex = 0;
+                
+                // 处理块公式占位符
+                for (const [placeholder, mathContent] of mathBlocks.entries()) {
+                    const index = text.indexOf(placeholder);
+                    if (index !== -1) {
+                        // 添加占位符前的文本
+                        if (index > lastIndex) {
+                            const textBefore = text.substring(lastIndex, index);
+                            if (textBefore) {
+                                newContent.push(latexSchema.text(textBefore));
+                            }
+                        }
+                        
+                        // 创建数学节点
+                        console.log("Replacing block math placeholder with:", mathContent);
+                        const mathNode = latexSchema.nodes.math_display.create({}, latexSchema.text(mathContent));
+                        newContent.push(mathNode);
+                        
+                        lastIndex = index + placeholder.length;
+                        hasChanges = true;
+                    }
+                }
+                
+                // 处理行内公式占位符
+                const remainingText = text.substring(lastIndex);
+                let inlineLastIndex = 0;
+                
+                for (const [placeholder, mathContent] of mathInlines.entries()) {
+                    const index = remainingText.indexOf(placeholder);
+                    if (index !== -1) {
+                        // 添加占位符前的文本
+                        if (index > inlineLastIndex) {
+                            const textBefore = remainingText.substring(inlineLastIndex, index);
+                            if (textBefore) {
+                                newContent.push(latexSchema.text(textBefore));
+                            }
+                        }
+                        
+                        // 创建数学节点
+                        console.log("Replacing inline math placeholder with:", mathContent);
+                        const mathNode = latexSchema.nodes.math_inline.create({}, latexSchema.text(mathContent));
+                        newContent.push(mathNode);
+                        
+                        inlineLastIndex = index + placeholder.length;
+                        hasChanges = true;
+                    }
+                }
+                
+                // 添加剩余的文本
+                if (inlineLastIndex < remainingText.length) {
+                    const textAfter = remainingText.substring(inlineLastIndex);
+                    if (textAfter) {
+                        newContent.push(latexSchema.text(textAfter));
+                    }
+                }
+                
+                if (hasChanges) {
+                    return newContent;
+                }
+            }
+            
+            return [node];
+        }
+        
+        // 步骤4：递归替换整个文档中的占位符
+        function transformDoc(doc) {
+            const newContent = [];
+            
+            doc.content.forEach(node => {
+                if (node.type.name === 'paragraph') {
+                    const newParagraphContent = [];
+                    
+                    node.content.forEach(child => {
+                        const replacedNodes = replacePlaceholders(child);
+                        newParagraphContent.push(...replacedNodes);
+                    });
+                    
+                    if (newParagraphContent.length > 0) {
+                        // 检查是否有块数学节点，如果有，需要将其提取出来
+                        const finalContent = [];
+                        let currentParagraphContent = [];
+                        
+                        for (const item of newParagraphContent) {
+                            if (item.type.name === 'math_display') {
+                                // 如果当前段落有内容，先创建段落
+                                if (currentParagraphContent.length > 0) {
+                                    finalContent.push(latexSchema.nodes.paragraph.create({}, currentParagraphContent));
+                                    currentParagraphContent = [];
+                                }
+                                // 添加数学块
+                                finalContent.push(item);
+                            } else {
+                                currentParagraphContent.push(item);
+                            }
+                        }
+                        
+                        // 如果还有剩余的段落内容
+                        if (currentParagraphContent.length > 0) {
+                            finalContent.push(latexSchema.nodes.paragraph.create({}, currentParagraphContent));
+                        }
+                        
+                        newContent.push(...finalContent);
+                    } else {
+                        newContent.push(node);
+                    }
+                } else {
+                    newContent.push(node);
+                }
+            });
+            
+            return latexSchema.nodes.doc.create({}, newContent);
+        }
+        
+        const finalDoc = transformDoc(parsedDoc);
         console.log("Final doc:", finalDoc.toString());
-        
-
         
         const state = EditorState.create({
             doc: finalDoc,
@@ -519,32 +675,14 @@ function initializeEditor(elementId, markdown_content) {
     }
 }
 
-// 自定义序列化器，避免使用有问题的 mathSerializer
+// 使用默认的序列化器，添加数学节点的序列化规则
 const mathMarkdownSerializer = {
     ...defaultMarkdownSerializer.nodes,
     math_inline: (state, node) => {
-        // 尝试从节点的不同属性获取内容
-        let content = '';
-        
-        // 方法1：从textContent获取
-        if (node.textContent) {
-            content = node.textContent;
-        }
-        // 方法2：从attrs获取
-        else if (node.attrs && node.attrs.content) {
-            content = node.attrs.content;
-        }
-        // 方法3：从子节点获取
-        else if (node.content && node.content.size > 0) {
-            content = node.textContent || '';
-        }
-        
+        let content = node.textContent || '';
         console.log('math_inline original content:', content);
-        console.log('math_inline node:', node);
-        console.log('math_inline node.attrs:', node.attrs);
-        console.log('math_inline node.content:', node.content);
         
-        // 检查是否已经有反斜杠转义问题
+        // 检查是否有重复的反斜杠转义，如果有则修复
         if (content.includes('\\\\')) {
             // 递归替换所有重复的反斜杠，直到没有变化
             let prevContent;
@@ -552,34 +690,16 @@ const mathMarkdownSerializer = {
                 prevContent = content;
                 content = content.replace(/\\\\/g, '\\');
             } while (prevContent !== content);
+            console.log('math_inline cleaned content:', content);
         }
         
-        console.log('math_inline processed content:', content);
         state.text('$' + content + '$');
     },
     math_display: (state, node) => {
-        // 尝试从节点的不同属性获取内容
-        let content = '';
-        
-        // 方法1：从textContent获取
-        if (node.textContent) {
-            content = node.textContent;
-        }
-        // 方法2：从attrs获取
-        else if (node.attrs && node.attrs.content) {
-            content = node.attrs.content;
-        }
-        // 方法3：从子节点获取
-        else if (node.content && node.content.size > 0) {
-            content = node.textContent || '';
-        }
-        
+        let content = node.textContent || '';
         console.log('math_display original content:', content);
-        console.log('math_display node:', node);
-        console.log('math_display node.attrs:', node.attrs);
-        console.log('math_display node.content:', node.content);
         
-        // 检查是否已经有反斜杠转义问题
+        // 检查是否有重复的反斜杠转义，如果有则修复
         if (content.includes('\\\\')) {
             // 递归替换所有重复的反斜杠，直到没有变化
             let prevContent;
@@ -587,49 +707,14 @@ const mathMarkdownSerializer = {
                 prevContent = content;
                 content = content.replace(/\\\\/g, '\\');
             } while (prevContent !== content);
+            console.log('math_display cleaned content:', content);
         }
         
-        console.log('math_display processed content:', content);
         state.text('$$\n' + content + '\n$$\n\n');
-    },
-    math_inline_double: (state, node) => {
-        // 尝试从节点的不同属性获取内容
-        let content = '';
-        
-        // 方法1：从textContent获取
-        if (node.textContent) {
-            content = node.textContent;
-        }
-        // 方法2：从attrs获取
-        else if (node.attrs && node.attrs.content) {
-            content = node.attrs.content;
-        }
-        // 方法3：从子节点获取
-        else if (node.content && node.content.size > 0) {
-            content = node.textContent || '';
-        }
-        
-        console.log('math_inline_double original content:', content);
-        console.log('math_inline_double node:', node);
-        console.log('math_inline_double node.attrs:', node.attrs);
-        console.log('math_inline_double node.content:', node.content);
-        
-        // 检查是否已经有反斜杠转义问题
-        if (content.includes('\\\\')) {
-            // 递归替换所有重复的反斜杠，直到没有变化
-            let prevContent;
-            do {
-                prevContent = content;
-                content = content.replace(/\\\\/g, '\\');
-            } while (prevContent !== content);
-        }
-        
-        console.log('math_inline_double processed content:', content);
-        state.text('$$' + content + '$$');
     }
 };
 
-// 创建正确的序列化器实例
+// 创建序列化器实例
 const customMarkdownSerializer = new MarkdownSerializer(
     mathMarkdownSerializer,
     defaultMarkdownSerializer.marks
@@ -664,16 +749,7 @@ function exportMarkdown(elementId = null) {
         console.log('Serialized content length:', content.length);
         console.log('Serialized content preview:', content.substring(0, 200));
         
-        // 在返回之前清理所有重复的反斜杠
-        if (content.includes('\\\\')) {
-            console.log('Found double backslashes, cleaning...');
-            let prevContent;
-            do {
-                prevContent = content;
-                content = content.replace(/\\\\/g, '\\');
-            } while (prevContent !== content);
-            console.log('Cleaned content preview:', content.substring(0, 200));
-        }
+        // 不再处理反斜杠，让 Markdown 转义符号正常工作
         
         return content;
     } catch (error) {

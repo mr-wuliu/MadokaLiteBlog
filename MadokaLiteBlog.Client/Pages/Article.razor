@@ -65,8 +65,40 @@
             // 处理数学公式
             Console.WriteLine("content:" + content);
             
-            // 移除这行导致重复转义的代码
-            // content = content.Replace("\\\\", "\\\\\\\\");
+            // 修复双重转义的反斜杠问题
+            if (content.Contains("\\\\"))
+            {
+                // 在数学公式中修复重复的反斜杠
+                content = Regex.Replace(content, @"\$\$\s*\n?([\s\S]*?)\n?\s*\$\$", match => {
+                    var mathContent = match.Groups[1].Value;
+                    // 递归替换所有重复的反斜杠
+                    string prevContent;
+                    do
+                    {
+                        prevContent = mathContent;
+                        mathContent = mathContent.Replace("\\\\", "\\");
+                    } while (prevContent != mathContent);
+                    
+                    Console.WriteLine("Fixed block math: " + mathContent);
+                    return "$$\n" + mathContent + "\n$$";
+                });
+                
+                content = Regex.Replace(content, @"\$([^$\n]+)\$", match => {
+                    var mathContent = match.Groups[1].Value;
+                    // 递归替换所有重复的反斜杠
+                    string prevContent;
+                    do
+                    {
+                        prevContent = mathContent;
+                        mathContent = mathContent.Replace("\\\\", "\\");
+                    } while (prevContent != mathContent);
+                    
+                    Console.WriteLine("Fixed inline math: " + mathContent);
+                    return "$" + mathContent + "$";
+                });
+                
+                Console.WriteLine("Fixed content: " + content);
+            }
             
             var pipeline = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
