@@ -358,6 +358,9 @@ function markdownInputRules(schema) {
 // 存储编辑器实例的 Map
 const editorInstances = new Map();
 
+// 移除了 cleanMathContent 函数，因为它造成了更多问题
+// 让 ProseMirror 和 markdown-it 自然地处理转义
+
 function initializeEditor(elementId, markdown_content) {
     const editorElement = document.getElementById(elementId);
     console.log("initializeEditor called with elementId:", elementId);
@@ -385,17 +388,9 @@ function initializeEditor(elementId, markdown_content) {
             const placeholder = `MATHBLOCK${blockCounter}PLACEHOLDER`;
             let cleanedContent = content.trim();
             
-            // 检查并修复重复的反斜杠转义
-            if (cleanedContent.includes('\\\\')) {
-                let prevContent;
-                do {
-                    prevContent = cleanedContent;
-                    cleanedContent = cleanedContent.replace(/\\\\/g, '\\');
-                } while (prevContent !== cleanedContent);
-                console.log("Found block math with double backslashes, cleaned:", cleanedContent);
-            } else {
-                console.log("Found block math:", cleanedContent);
-            }
+            // 在加载时不需要清理，只是简单处理
+            // cleanedContent = cleanMathContent(cleanedContent);
+            console.log("Found block math:", cleanedContent);
             
             mathBlocks.set(placeholder, cleanedContent);
             blockCounter++;
@@ -407,17 +402,9 @@ function initializeEditor(elementId, markdown_content) {
             const placeholder = `MATHINLINE${inlineCounter}PLACEHOLDER`;
             let cleanedContent = content.trim();
             
-            // 检查并修复重复的反斜杠转义
-            if (cleanedContent.includes('\\\\')) {
-                let prevContent;
-                do {
-                    prevContent = cleanedContent;
-                    cleanedContent = cleanedContent.replace(/\\\\/g, '\\');
-                } while (prevContent !== cleanedContent);
-                console.log("Found inline math with double backslashes, cleaned:", cleanedContent);
-            } else {
-                console.log("Found inline math:", cleanedContent);
-            }
+            // 在加载时不需要清理，只是简单处理
+            // cleanedContent = cleanMathContent(cleanedContent);
+            console.log("Found inline math:", cleanedContent);
             
             mathInlines.set(placeholder, cleanedContent);
             inlineCounter++;
@@ -654,37 +641,17 @@ const mathMarkdownSerializer = {
     ...defaultMarkdownSerializer.nodes,
     math_inline: (state, node) => {
         let content = node.textContent || '';
-        console.log('math_inline original content:', content);
+        console.log('math_inline serialization - content:', JSON.stringify(content));
         
-        // 检查是否有重复的反斜杠转义，如果有则修复
-        if (content.includes('\\\\')) {
-            // 递归替换所有重复的反斜杠，直到没有变化
-            let prevContent;
-            do {
-                prevContent = content;
-                content = content.replace(/\\\\/g, '\\');
-            } while (prevContent !== content);
-            console.log('math_inline cleaned content:', content);
-        }
-        
-        state.text('$' + content + '$');
+        // 使用 state.text() 但在输出时手动处理转义
+        state.text('$' + content + '$', false);
     },
     math_display: (state, node) => {
         let content = node.textContent || '';
-        console.log('math_display original content:', content);
+        console.log('math_display serialization - content:', JSON.stringify(content));
         
-        // 检查是否有重复的反斜杠转义，如果有则修复
-        if (content.includes('\\\\')) {
-            // 递归替换所有重复的反斜杠，直到没有变化
-            let prevContent;
-            do {
-                prevContent = content;
-                content = content.replace(/\\\\/g, '\\');
-            } while (prevContent !== content);
-            console.log('math_display cleaned content:', content);
-        }
-        
-        state.text('$$\n' + content + '\n$$\n\n');
+        // 使用 state.text() 但在输出时手动处理转义
+        state.text('$$\n' + content + '\n$$\n\n', false);
     }
 };
 
@@ -723,12 +690,45 @@ function exportMarkdown(elementId = null) {
         console.log('Serialized content length:', content.length);
         console.log('Serialized content preview:', content.substring(0, 200));
         
+        // 修复序列化后的双重转义问题
+        content = fixDoubleEscaping(content);
+        console.log('Fixed content:', content);
+        
         return content;
     } catch (error) {
         console.error('Error serializing markdown:', error);
         console.error('Error stack:', error.stack);
         return '';
     }
+}
+
+function fixDoubleEscaping(content) {
+    // 在数学块中修复双重转义
+    return content.replace(/\$\$\n([\s\S]*?)\n\$\$/g, (match, mathContent) => {
+        console.log('Fixing math content:', JSON.stringify(mathContent));
+        
+        // 在数学内容中，将过度转义的反斜杠修复为正确的数量
+        let fixed = mathContent;
+        
+        // 保护 LaTeX 换行符：\\\\ 后面跟着换行符或行尾（这些应该保持为 \\）
+        const lineBreakPlaceholder = '___LATEX_LINEBREAK___';
+        fixed = fixed.replace(/\\\\(?=\s*\n)/g, lineBreakPlaceholder);
+        fixed = fixed.replace(/\\\\(?=\s*$)/gm, lineBreakPlaceholder);
+        
+        // 修复过度转义的 LaTeX 命令：将 \\lambda 变成 \lambda，\\frac 变成 \frac 等
+        fixed = fixed.replace(/\\\\(lambda|frac|Rightarrow|Leftrightarrow|begin|end)/g, '\\$1');
+        
+        // 处理任何剩余的多重反斜杠（3个或更多）
+        while (fixed.includes('\\\\\\')) {
+            fixed = fixed.replace(/\\{3,}/g, '\\\\');
+        }
+        
+        // 恢复 LaTeX 换行符
+        fixed = fixed.replace(new RegExp(lineBreakPlaceholder, 'g'), '\\\\');
+        
+        console.log('Fixed math content:', JSON.stringify(fixed));
+        return '$$\n' + fixed + '\n$$';
+    });
 }
 
 window.initializeEditor = initializeEditor;

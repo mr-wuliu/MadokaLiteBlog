@@ -30,7 +30,15 @@
             Console.WriteLine($"Getting markdown content for editorId: {editorId}");
             var content = await JS.InvokeAsync<string>("exportMarkdown", editorId);
             Console.WriteLine($"Retrieved content length: {content?.Length ?? 0}");
-            Console.WriteLine($"Content preview: {content?.Substring(0, Math.Min(100, content?.Length ?? 0))}");
+            Console.WriteLine($"Raw content from JS: {content}");
+            
+            // 临时修复：清理过度转义的反斜杠
+            if (!string.IsNullOrEmpty(content))
+            {
+                content = CleanExcessiveBackslashes(content);
+                Console.WriteLine($"Final cleaned content: {content}");
+            }
+            
             return content ?? "";
         }
         catch (Exception ex)
@@ -39,5 +47,54 @@
             Console.WriteLine($"Stack trace: {ex.StackTrace}");
             return "";
         }
+    }
+    
+    private string CleanExcessiveBackslashes(string content)
+    {
+        if (string.IsNullOrEmpty(content))
+            return content;
+        
+        Console.WriteLine($"CleanExcessiveBackslashes input: {content}");
+        
+        var result = content;
+        
+        // 检查是否有重复的数学块
+        var alignMatches = System.Text.RegularExpressions.Regex.Matches(result, @"\\begin\{align\}");
+        if (alignMatches.Count > 1)
+        {
+            Console.WriteLine($"Found {alignMatches.Count} align blocks, this might be a duplication issue");
+            // 如果有重复的数学块，只保留第一个
+            var firstAlignMatch = alignMatches[0];
+            var firstAlignEnd = result.IndexOf("\\end{align}", firstAlignMatch.Index);
+            if (firstAlignEnd != -1)
+            {
+                var firstBlock = result.Substring(firstAlignMatch.Index, firstAlignEnd + "\\end{align}".Length - firstAlignMatch.Index);
+                Console.WriteLine($"Keeping only first align block: {firstBlock}");
+                result = firstBlock;
+            }
+        }
+        
+        // 步骤1：首先保护正确的 LaTeX 换行符（在 align 环境中的 \\ 后面跟着换行、&、或行尾）
+        var lineBreakPlaceholder = "___LATEX_LINEBREAK___";
+        
+        // 保护 align 环境中的换行符：\\ 后面跟着换行符或行尾
+        result = System.Text.RegularExpressions.Regex.Replace(result, @"\\\\(?=\s*\n)", lineBreakPlaceholder);
+        result = System.Text.RegularExpressions.Regex.Replace(result, @"\\\\(?=\s*$)", lineBreakPlaceholder, System.Text.RegularExpressions.RegexOptions.Multiline);
+        
+        // 步骤2：清理过度转义的 LaTeX 命令（将 \\begin 变成 \begin，\\lambda 变成 \lambda 等）
+        result = System.Text.RegularExpressions.Regex.Replace(result, @"\\\\(begin|end|lambda|frac|Rightarrow|Leftrightarrow)", "\\$1");
+        
+        // 步骤3：清理任何剩余的多重反斜杠（3个或更多连续的反斜杠）
+        while (System.Text.RegularExpressions.Regex.IsMatch(result, @"\\{3,}"))
+        {
+            result = System.Text.RegularExpressions.Regex.Replace(result, @"\\{3,}", "\\\\");
+        }
+        
+        // 步骤4：恢复 LaTeX 换行符
+        result = result.Replace(lineBreakPlaceholder, "\\\\");
+        
+        Console.WriteLine($"CleanExcessiveBackslashes output: {result}");
+        
+        return result;
     }
 }
