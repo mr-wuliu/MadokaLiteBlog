@@ -168,9 +168,9 @@
                 .UseMediaLinks()
                 .UseMathematics()
                 .Build();
-            @* return Markdown.ToHtml(builder.ToString(), pipeline); *@
-            content = content.Replace("\\\\", "\\\\\\\\");
-            var html = Markdown.ToHtml(content, pipeline);
+            
+            // 使用已经处理过双重转义的内容
+            var html = Markdown.ToHtml(builder.ToString(), pipeline);
             Console.WriteLine("Generated HTML: " + html);
             return html;
         }
